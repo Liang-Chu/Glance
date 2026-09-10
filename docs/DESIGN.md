@@ -13,7 +13,9 @@
 | Where does the text of a tip come from? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
 | Does this project run a server, or hold any API key or account of its own? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: "i dont want to host a server for this one") |
 | How does the app reach an LLM the user runs themselves, versus a hosted LLM API? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| Is the search engine or the LLM vendor fixed by this project? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: "something like brave") |
+| Is the LLM vendor fixed by this project? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
+| Does the app search the web for material? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: ruled out — "Just use it as notification generater") |
+| Is a tip a sourced fact? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
 | What happens when a provider is missing or unreachable? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"**, applying [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" |
 | How often does a tip appear? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
 | Why does a notification expire, and what cancels it? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10: "i dont want the user have to deal with the notification on the phone again") |
@@ -77,18 +79,26 @@ summary"*, and *"i dont want to host a server for this one"*. The owner chose a 
 a tip every N hours — over firing at set times of day or on a manual tap.
 
 **The pipeline.** A timer fires on an interval the user sets. The app takes a keyword from a set the
-user configured, asks a **web search provider** for material in that field, has an **LLM** condense
-what comes back to a length the user set, and posts the result as an Android notification that stops
-displaying after a time the user set.
+user configured, asks an **LLM** for a tip in that field at a length the user set, and posts what
+comes back as an Android notification that stops displaying after a time the user set.
+
+~~The material came from a web search provider, and the LLM condensed it.~~ → **the search step is
+ruled out** (owner, 2026-09-10: *"i dont think this gonna be capable of search in the app properly.
+it is hard to lookup some facts that is both reliable and usable. Just use it as notification
+generater."*). No search provider is configured, called, or named anywhere.
+
+**A tip is model output, not a sourced fact.** Dropping retrieval trades grounding for usability
+deliberately, and the app must not spend the difference by implying it has a source it does not
+have: a notification carries the tip and nothing that reads as a citation, a reference, or a
+verification.
 
 **No service in that pipeline belongs to this project.** This project runs no server, holds no API
 key, and pays for no account. Every outside service is reached with configuration the user supplies
-and which stays on the user's own device. That applies to the LLM two ways — an endpoint the user
-runs themselves, or a hosted LLM API the user has a key for — and both are the same shape, **a base
-URL plus a credential**, so the app carries **one provider mechanism rather than a branch per
-vendor**, per [`CONSTRAINTS.md`](CONSTRAINTS.md) "C4 — Solve it structurally, not by stacking cases".
-The search provider is configured the same way: the owner said *"something like brave"*, so Brave is
-an example rather than a fixed dependency, and no vendor is named in the code.
+and which stays on the user's own device. The LLM is reachable two ways — an endpoint the user runs
+themselves, or a hosted LLM API the user has a key for — and both are the same shape, **a base URL
+plus a credential**, so the app carries **one provider mechanism rather than a branch per vendor**,
+per [`CONSTRAINTS.md`](CONSTRAINTS.md) "C4 — Solve it structurally, not by stacking cases". No vendor
+is named in the code.
 
 **When a provider is missing or unreachable, no tip is posted and no substitute text is invented.**
 Truncating a search snippet because the LLM did not answer would be exactly the defaulting that
@@ -96,13 +106,18 @@ Truncating a search snippet because the LLM did not answer would be exactly the 
 claim to be a tip while carrying something else.
 
 **Which keyword, and no repeats.** Keywords are used **in rotation**, so one keyword cannot take
-consecutive runs while others go unused. The app **remembers the results it has already shown** and
-skips them, which is what stops a fixed keyword set from returning the same top results every few
-hours. That memory is a local store on the device: it is what the app knows about itself, it is sent
-nowhere, and it is the one piece of state a run carries between invocations.
+consecutive runs while others go unused. The app **remembers the tips it has recently posted** and
+gives them to the LLM, so that it is asked for something it has not already said. That memory is a
+local store on the device: it is what the app knows about itself, it is sent to no one but the
+user's own configured provider, and it is the one piece of state a run carries between invocations.
 
-What is still open about this — when that memory forgets a result, and what the length setting
-counts — is tracked in [`BACKLOG.md`](BACKLOG.md).
+This is a weaker guarantee than it looks: a model given its own recent output can still repeat
+itself, where skipping a known result could not. Repetition is therefore a quality problem to
+measure, not something the design has closed.
+
+What is still open about this — how far back that memory reaches, whether a repeat is rejected
+outright, what the app asks the LLM for in the first place, and what the length setting counts — is
+tracked in [`BACKLOG.md`](BACKLOG.md).
 
 ### Acceptance
 
@@ -118,10 +133,15 @@ counts — is tracked in [`BACKLOG.md`](BACKLOG.md).
   no repeating work more often than that setting.
 - `tip-source-6` The length of a notification and the time it stops displaying are both user
   settings, and neither is a constant in the source.
-- `tip-source-7` A result already shown is not shown again while it is remembered, and the store of
-  what was shown never leaves the device.
 - `tip-source-8` Keywords advance in rotation: with more than one configured, no keyword is used
   twice before every other has been used once.
+- `tip-source-9` The tips recently posted are given to the provider on each run, and that store
+  reaches nothing but the provider the user configured.
+- `tip-source-10` No search provider is called, configured, or named in the source.
+- `tip-source-11` A notification carries the tip and nothing that reads as a citation, a source, or
+  a claim of verification.
+
+Retired: tip-source-7 (search step dropped, 2026-09-10).
 
 ## 3 · What a failed run shows
 
