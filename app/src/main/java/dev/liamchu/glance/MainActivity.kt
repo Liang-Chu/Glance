@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import android.Manifest
 import android.os.Build
@@ -53,8 +53,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BlipTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = BlipBlack) {
+            GlanceTheme {
+                Surface(modifier = Modifier.fillMaxSize(), color = GlanceBlack) {
                     SettingsScreen()
                 }
             }
@@ -128,12 +128,12 @@ private fun SettingsScreen() {
             .padding(horizontal = 22.dp, vertical = 36.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text("BLIP", style = MaterialTheme.typography.headlineSmall, color = BlipWhite)
+        Text("GLANCE", style = MaterialTheme.typography.headlineSmall, color = GlanceWhite)
         PixelRule()
         Text(
             "BACKEND -> NOTIFICATION -> GONE",
             style = MaterialTheme.typography.labelSmall,
-            color = BlipGrey,
+            color = GlanceGrey,
         )
 
         Field("Backend URL", url, KeyboardType.Uri) { url = it }
@@ -147,7 +147,7 @@ private fun SettingsScreen() {
         Text(
             "> AT LEAST 15 MINUTES IN TOTAL.",
             style = MaterialTheme.typography.bodySmall,
-            color = BlipGrey,
+            color = GlanceGrey,
         )
 
         Duration("Expires after") {
@@ -155,13 +155,11 @@ private fun SettingsScreen() {
             NumberCell("SECS", expirySeconds, Modifier.weight(1f)) { expirySeconds = it }
             Box(Modifier.weight(1f))
         }
-        if (partOrNull(expiryMinutes) == 0 && partOrNull(expirySeconds) == 0) {
-            Text(
-                "> 0 = GONE FROM THE PHONE AT ONCE. THE GLASSES STILL GET IT.",
-                style = MaterialTheme.typography.bodySmall,
-                color = BlipGrey,
-            )
-        }
+        Text(
+            "> AT LEAST 3 SECONDS, SO THE GLASSES RECEIVE IT FIRST.",
+            style = MaterialTheme.typography.bodySmall,
+            color = GlanceGrey,
+        )
 
         Field("Max length / characters", maxLength, KeyboardType.Number) { maxLength = it }
 
@@ -171,8 +169,8 @@ private fun SettingsScreen() {
                 .height(54.dp),
             shape = RectangleShape,
             colors = ButtonDefaults.buttonColors(
-                containerColor = BlipWhite,
-                contentColor = BlipBlack,
+                containerColor = GlanceWhite,
+                contentColor = GlanceBlack,
             ),
             onClick = {
                 saveThen({ Scheduler.schedule(context, it.intervalMinutes) }) { saved ->
@@ -188,10 +186,10 @@ private fun SettingsScreen() {
                 .fillMaxWidth()
                 .height(48.dp),
             shape = RectangleShape,
-            border = BorderStroke(1.dp, BlipWhite),
+            border = BorderStroke(1.dp, GlanceWhite),
             colors = ButtonDefaults.buttonColors(
-                containerColor = BlipBlack,
-                contentColor = BlipWhite,
+                containerColor = GlanceBlack,
+                contentColor = GlanceWhite,
             ),
             onClick = {
                 saveThen({ Scheduler.checkNow(context) }) { "SAVED. CHECKING NOW." }
@@ -204,37 +202,37 @@ private fun SettingsScreen() {
             Text(
                 "> " + message,
                 style = MaterialTheme.typography.bodySmall,
-                color = BlipGrey,
+                color = GlanceGrey,
             )
         }
 
         if (!notificationsAllowed) {
-            PixelRule(BlipWhite)
+            PixelRule(GlanceWhite)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(BlipWhite)
+                    .background(GlanceWhite)
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(
                     "NOTIFICATIONS OFF",
                     style = MaterialTheme.typography.labelSmall,
-                    color = BlipBlack,
+                    color = GlanceBlack,
                 )
                 Text(
-                    "Nothing can be shown. Allow them, then add Blip in the " +
+                    "Nothing can be shown. Allow them, then add Glance in the " +
                         "Even Realities app under Notifications.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = BlipBlack,
+                    color = GlanceBlack,
                 )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RectangleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BlipBlack,
-                            contentColor = BlipWhite,
+                            containerColor = GlanceBlack,
+                            contentColor = GlanceWhite,
                         ),
                         onClick = { permission.launch(Manifest.permission.POST_NOTIFICATIONS) },
                     ) {
@@ -248,7 +246,7 @@ private fun SettingsScreen() {
 
 /** A dashed rule drawn as blocks, so it reads as pixels rather than a hairline. */
 @Composable
-private fun PixelRule(colour: Color = BlipDimGrey) {
+private fun PixelRule(colour: Color = GlanceDimGrey) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -272,7 +270,7 @@ private fun Duration(label: String, cells: @Composable RowScope.() -> Unit) {
         Text(
             label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = BlipGrey,
+            color = GlanceGrey,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -300,7 +298,7 @@ private fun NumberCell(
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = fieldColours(),
         )
-        Text(unit, style = MaterialTheme.typography.labelSmall, color = BlipGrey)
+        Text(unit, style = MaterialTheme.typography.labelSmall, color = GlanceGrey)
     }
 }
 
@@ -315,7 +313,7 @@ private fun Field(
         Text(
             label.uppercase(),
             style = MaterialTheme.typography.labelSmall,
-            color = BlipGrey,
+            color = GlanceGrey,
         )
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
@@ -332,13 +330,13 @@ private fun Field(
 
 @Composable
 private fun fieldColours() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = BlipWhite,
-    unfocusedTextColor = BlipWhite,
-    focusedBorderColor = BlipWhite,
-    unfocusedBorderColor = BlipDimGrey,
-    focusedContainerColor = BlipNearBlack,
-    unfocusedContainerColor = BlipNearBlack,
-    cursorColor = BlipWhite,
+    focusedTextColor = GlanceWhite,
+    unfocusedTextColor = GlanceWhite,
+    focusedBorderColor = GlanceWhite,
+    unfocusedBorderColor = GlanceDimGrey,
+    focusedContainerColor = GlanceNearBlack,
+    unfocusedContainerColor = GlanceNearBlack,
+    cursorColor = GlanceWhite,
 )
 
 /**

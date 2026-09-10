@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import android.content.Context
 import androidx.work.CoroutineWorker
@@ -11,7 +11,7 @@ import androidx.work.WorkerParameters
  * per run and makes the next run the retry, so a WorkManager backoff here would
  * quietly turn one scheduled call into several.
  */
-class BlipWorker(
+class GlanceWorker(
     context: Context,
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {

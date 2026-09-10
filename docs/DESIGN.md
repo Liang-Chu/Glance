@@ -119,13 +119,18 @@ recorded here, not a field quietly added to a screen.
 | Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
 | Credential | opaque string, may be left empty | empty |
 | Check every | days + hours + minutes, added together; at least 15 minutes in total | 4 hours |
-| Expires after | minutes + seconds, added together; **a total of 0 is legal** | 10 minutes |
+| Expires after | minutes + seconds, added together; at least 3 seconds in total | 10 minutes |
 | Maximum length | characters | 120 |
 
-~~A duration was one number beside a row of unit buttons, and only one unit applied at a time.~~ →
-**a duration is a box per unit, added together** (owner, 2026-09-10: *"i expecting the user to set
-the time like x minutes x hour x days instead of a few different units in the same level"*). An empty
-box counts as zero, so most durations are one number typed in one box.
+~~An expiry of zero was legal and meant "gone from the phone at once".~~ → **three seconds is the
+floor** (owner, 2026-09-10: *"lets floor the duration by 3 seconds"*). Zero was never safe: the
+listener that feeds the glasses is handed a notification when it is posted, and a lifetime measured
+in milliseconds gambles on winning that race. Three seconds is short enough to be gone before anyone
+looks at the phone and long enough that the glasses have certainly been given it, which turns an
+unverifiable claim into an ordinary one.
+
+A duration is a box per unit, added together, and an empty box counts as zero — so most durations are
+one number typed in one box.
 
 **The interval has a floor, and it is refused rather than clamped.** WorkManager will not repeat work
 more often than every fifteen minutes; asked for less it silently rounds up. The settings screen
@@ -174,8 +179,8 @@ glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
   settings screen accepts fails later for being cleartext.
 - `settings-8` An interval below fifteen minutes is refused when it is entered, in every unit, and
   no code path rounds one up.
-- `settings-9` An expiry of zero saves and schedules. It is never treated as "no expiry", and the
-  notification does not outlive the run.
+- `settings-9` An expiry totalling under three seconds is refused when it is entered. No expiry ever
+  reaches the platform as zero, which it would read as "no expiry at all".
 - `settings-10` Two spellings of one duration schedule identically: 1 hour and 60 minutes agree, and
   1 minute and 1 day do not.
 - `settings-11` A manual check runs one check immediately and leaves the repeating schedule alone:

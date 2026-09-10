@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -16,7 +16,7 @@ class SettingsTest {
         expiryMinutes: Int = 10,
         expirySeconds: Int = 0,
     ) = Settings(
-        url = "http://example.com/blip",
+        url = "http://example.com/glance",
         credential = "",
         checkDays = checkDays,
         checkHours = checkHours,
@@ -44,6 +44,11 @@ class SettingsTest {
     }
 
     @Test
+    fun `expiry total seconds add up`() {
+        assertEquals(90L, settings(expiryMinutes = 1, expirySeconds = 30).expiryTotalSeconds)
+    }
+
+    @Test
     fun `the expiry parts add up`() {
         assertEquals(600_000L, settings(expiryMinutes = 10, expirySeconds = 0).expiryMillis)
         assertEquals(30_000L, settings(expiryMinutes = 0, expirySeconds = 30).expiryMillis)
@@ -51,9 +56,24 @@ class SettingsTest {
     }
 
     @Test
-    fun `an expiry of zero everywhere is legal and means at once`() {
-        assertNull(expiryProblem("0", "0"))
-        assertEquals(0L, settings(expiryMinutes = 0, expirySeconds = 0).expiryMillis)
+    fun `an expiry under three seconds is refused`() {
+        assertNotNull("zero would risk vanishing before the glasses see it",
+            expiryProblem("0", "0"))
+        assertNotNull(expiryProblem("0", "1"))
+        assertNotNull(expiryProblem("0", "2"))
+    }
+
+    @Test
+    fun `three seconds is the floor and is accepted`() {
+        assertNull(expiryProblem("0", "3"))
+        assertEquals(3_000L, settings(expiryMinutes = 0, expirySeconds = 3).expiryMillis)
+        assertEquals(3L, settings(expiryMinutes = 0, expirySeconds = 3).expiryTotalSeconds)
+    }
+
+    @Test
+    fun `the floor counts the total, not one box`() {
+        assertNull("one minute is well over the floor", expiryProblem("1", "0"))
+        assertNull(expiryProblem("0", "30"))
     }
 
     @Test
@@ -67,7 +87,7 @@ class SettingsTest {
     fun `negative and unparseable parts are refused`() {
         assertNull(partOrNull("-1"))
         assertNull(partOrNull("soon"))
-        assertNotNull(expiryProblem("-1", "0"))
+        assertNotNull(expiryProblem("-1", "30"))
         assertNotNull(intervalProblem("0", "0", "later"))
     }
 

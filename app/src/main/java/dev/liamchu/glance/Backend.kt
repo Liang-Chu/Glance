@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +30,7 @@ object Backend {
 
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
-    private val USER_AGENT = "Blip/" + BuildConfig.VERSION_NAME
+    private val USER_AGENT = "Glance/" + BuildConfig.VERSION_NAME
 
     suspend fun fetch(settings: Settings): Outcome = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
@@ -49,7 +49,15 @@ object Backend {
                 }
             }
 
-            val request = JSONObject().put("max_length", settings.maxLength).toString()
+            // Everything the backend needs in order to answer well, and nothing
+            // it could not have worked out for itself. CONTRACT.md "The call".
+            val request = JSONObject()
+                .put("max_length", settings.maxLength)
+                .put("title_max_length", TITLE_MAX_CHARS)
+                .put("expires_after_seconds", settings.expiryTotalSeconds)
+                .put("interval_minutes", settings.intervalMinutes)
+                .put("client", USER_AGENT)
+                .toString()
             connection.outputStream.use { it.write(request.toByteArray(Charsets.UTF_8)) }
 
             when (val code = connection.responseCode) {

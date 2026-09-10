@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -17,33 +17,33 @@ import androidx.compose.ui.unit.sp
  * DESIGN.md "How it looks": black, white, grey, and nothing else. Monospaced,
  * square-cornered, to sit next to the glasses rather than next to other apps.
  */
-val BlipBlack = Color(0xFF000000)
-val BlipWhite = Color(0xFFFFFFFF)
-val BlipGrey = Color(0xFF8A8A8A)
-val BlipDimGrey = Color(0xFF3C3C3C)
-val BlipNearBlack = Color(0xFF0C0C0C)
+val GlanceBlack = Color(0xFF000000)
+val GlanceWhite = Color(0xFFFFFFFF)
+val GlanceGrey = Color(0xFF8A8A8A)
+val GlanceDimGrey = Color(0xFF3C3C3C)
+val GlanceNearBlack = Color(0xFF0C0C0C)
 
 private val Mono = FontFamily.Monospace
 
-private val BlipColours = darkColorScheme(
-    primary = BlipWhite,
-    onPrimary = BlipBlack,
-    secondary = BlipGrey,
-    onSecondary = BlipBlack,
-    background = BlipBlack,
-    onBackground = BlipWhite,
-    surface = BlipBlack,
-    onSurface = BlipWhite,
-    surfaceVariant = BlipNearBlack,
-    onSurfaceVariant = BlipGrey,
-    outline = BlipDimGrey,
-    outlineVariant = BlipDimGrey,
+private val GlanceColours = darkColorScheme(
+    primary = GlanceWhite,
+    onPrimary = GlanceBlack,
+    secondary = GlanceGrey,
+    onSecondary = GlanceBlack,
+    background = GlanceBlack,
+    onBackground = GlanceWhite,
+    surface = GlanceBlack,
+    onSurface = GlanceWhite,
+    surfaceVariant = GlanceNearBlack,
+    onSurfaceVariant = GlanceGrey,
+    outline = GlanceDimGrey,
+    outlineVariant = GlanceDimGrey,
     // Monochrome throughout: an error is told apart by inversion, never by hue.
-    error = BlipWhite,
-    onError = BlipBlack,
+    error = GlanceWhite,
+    onError = GlanceBlack,
 )
 
-private val BlipTypography = Typography(
+private val GlanceTypography = Typography(
     headlineSmall = TextStyle(
         fontFamily = Mono,
         fontSize = 30.sp,
@@ -77,7 +77,7 @@ private val BlipTypography = Typography(
  */
 private val Square = RoundedCornerShape(0.dp)
 
-private val BlipShapes = Shapes(
+private val GlanceShapes = Shapes(
     extraSmall = Square,
     small = Square,
     medium = Square,
@@ -86,11 +86,11 @@ private val BlipShapes = Shapes(
 )
 
 @Composable
-fun BlipTheme(content: @Composable () -> Unit) {
+fun GlanceTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = BlipColours,
-        typography = BlipTypography,
-        shapes = BlipShapes,
+        colorScheme = GlanceColours,
+        typography = GlanceTypography,
+        shapes = GlanceShapes,
         content = content,
     )
 }

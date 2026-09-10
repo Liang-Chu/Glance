@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -15,21 +15,9 @@ import androidx.core.app.NotificationManagerCompat
  */
 object Notifier {
 
-    private const val CHANNEL_ID = "blip"
+    private const val CHANNEL_ID = "glance"
     private const val ID_CONTENT = 1
     private const val ID_FAILURE = 2
-    /**
-     * A zero expiry means "gone from the phone at once", and it cannot be passed
-     * to the platform as zero: Android reads a timeout of 0 as "no timeout at
-     * all", which is the exact opposite of what was asked for. The smallest
-     * positive value asks it to cancel as soon as it is able.
-     *
-     * Whether a notification that lives this briefly is still forwarded to the
-     * glasses is UNVERIFIED — the listener that forwards it is told when the
-     * notification is posted, not when it is cancelled, so it should be, but only
-     * the hardware can settle it. Tracked in BACKLOG.md.
-     */
-    private const val AT_ONCE_MS = 1L
 
     fun canPost(context: Context): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -39,7 +27,9 @@ object Notifier {
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setTimeoutAfter(if (expiryMillis <= 0L) AT_ONCE_MS else expiryMillis)
+            // Never zero: Android reads a timeout of 0 as "no timeout at all".
+            // expiryProblem refuses anything under the floor, so this is always positive.
+            .setTimeoutAfter(expiryMillis)
             .setAutoCancel(true)
             .build()
         post(context, ID_CONTENT, notification)
@@ -63,7 +53,7 @@ object Notifier {
     private fun builder(context: Context): NotificationCompat.Builder {
         ensureChannel(context)
         return NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_blip)
+            .setSmallIcon(R.drawable.ic_glance)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
     }
 

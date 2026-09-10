@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import android.content.Context
 import androidx.work.Constraints
@@ -21,11 +21,11 @@ import java.util.concurrent.TimeUnit
  */
 object Scheduler {
 
-    private const val WORK_NAME = "blip-poll"
-    private const val NOW_WORK_NAME = "blip-now"
+    private const val WORK_NAME = "glance-poll"
+    private const val NOW_WORK_NAME = "glance-now"
 
     fun schedule(context: Context, intervalMinutes: Long) {
-        val request = PeriodicWorkRequestBuilder<BlipWorker>(
+        val request = PeriodicWorkRequestBuilder<GlanceWorker>(
             intervalMinutes,
             TimeUnit.MINUTES,
         ).setConstraints(
@@ -53,7 +53,7 @@ object Scheduler {
      * call and the notification, not the waking up.
      */
     fun checkNow(context: Context) {
-        val request = OneTimeWorkRequestBuilder<BlipWorker>()
+        val request = OneTimeWorkRequestBuilder<GlanceWorker>()
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)

@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -40,9 +40,11 @@ data class Settings(
     val intervalMinutes: Long
         get() = checkDays * MINUTES_PER_DAY + checkHours * MINUTES_PER_HOUR + checkMinutes
 
-    /** Zero is legal and means "gone from the phone at once". */
+    val expiryTotalSeconds: Long
+        get() = expiryMinutes * SECONDS_PER_MINUTE + expirySeconds
+
     val expiryMillis: Long
-        get() = (expiryMinutes * SECONDS_PER_MINUTE + expirySeconds) * MILLIS_PER_SECOND
+        get() = expiryTotalSeconds * MILLIS_PER_SECOND
 }
 
 object SettingsStore {
@@ -63,6 +65,13 @@ object SettingsStore {
 
     /** WorkManager will not repeat work more often than this, and rounds up silently. */
     const val MINIMUM_INTERVAL_MINUTES = 15L
+
+    /**
+     * The shortest a notification may live. Long enough that the listener feeding
+     * the glasses has certainly been handed it before Android takes it back, and
+     * short enough to be gone from the phone before anyone looks.
+     */
+    const val MINIMUM_EXPIRY_SECONDS = 3L
 
     private val KEY_URL = stringPreferencesKey("url")
     private val KEY_CREDENTIAL = stringPreferencesKey("credential")
@@ -163,10 +172,19 @@ fun intervalProblem(days: String, hours: String, minutes: String): String? {
     return null
 }
 
-/** Criterion settings-9: a total of zero is legal, and means "gone at once". */
+/**
+ * Criterion settings-9. Three seconds is a floor rather than a preference: below
+ * it there is no guarantee the notification is still there when the listener that
+ * feeds the glasses goes looking, so a shorter one risks vanishing from both
+ * places rather than just the phone.
+ */
 fun expiryProblem(minutes: String, seconds: String): String? {
-    if (partOrNull(minutes) == null || partOrNull(seconds) == null) {
-        return "EXPIRES AFTER: WHOLE NUMBERS, 0 OR MORE."
+    val m = partOrNull(minutes)
+    val s = partOrNull(seconds)
+    if (m == null || s == null) return "EXPIRES AFTER: WHOLE NUMBERS, 0 OR MORE."
+    if (m * SECONDS_PER_MINUTE + s < SettingsStore.MINIMUM_EXPIRY_SECONDS) {
+        return "EXPIRES AFTER: AT LEAST " + SettingsStore.MINIMUM_EXPIRY_SECONDS +
+            " SECONDS IN TOTAL, SO THE GLASSES RECEIVE IT."
     }
     return null
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Blip</string>
-    <string name="channel_name">Blip</string>
-    <string name="failure_title">Blip could not reach your backend</string>
+    <string name="app_name">Glance</string>
+    <string name="channel_name">Glance</string>
+    <string name="failure_title">Glance could not reach your backend</string>
 </resources>

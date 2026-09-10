@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Blip"
+rootProject.name = "Glance"
 include(":app")

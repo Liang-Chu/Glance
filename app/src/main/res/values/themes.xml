@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Black before Compose draws, so the app never flashes white on launch. -->
-    <style name="Theme.Blip" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/blip_black</item>
-        <item name="android:statusBarColor">@color/blip_black</item>
-        <item name="android:navigationBarColor">@color/blip_black</item>
+    <style name="Theme.Glance" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/glance_black</item>
+        <item name="android:statusBarColor">@color/glance_black</item>
+        <item name="android:navigationBarColor">@color/glance_black</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

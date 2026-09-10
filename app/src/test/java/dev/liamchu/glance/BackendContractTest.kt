@@ -1,4 +1,4 @@
-package dev.liamchu.blip
+package dev.liamchu.glance
 
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
@@ -27,16 +27,40 @@ class BackendContractTest {
         server = null
     }
 
-    // --- what Blip sends -----------------------------------------------------
+    // --- what Glance sends -----------------------------------------------------
 
     @Test
-    fun `posts the max length to the configured url`() {
+    fun `posts to the configured url`() {
         serve(200, """{"title":"T","text":"ok"}""")
         runBlocking { Backend.fetch(settings(maxLength = 120)) }
 
         assertEquals("POST", seenMethod)
-        assertTrue("body was: $seenBody", seenBody.contains("\"max_length\""))
-        assertTrue("body was: $seenBody", seenBody.contains("120"))
+    }
+
+    @Test
+    fun `tells the backend every limit it has to work within`() {
+        serve(200, """{"title":"T","text":"ok"}""")
+        runBlocking { Backend.fetch(settings(maxLength = 100)) }
+
+        val sent = org.json.JSONObject(seenBody)
+        assertEquals(100, sent.getInt("max_length"))
+        assertEquals(Backend.TITLE_MAX_CHARS, sent.getInt("title_max_length"))
+        assertEquals(30, sent.getInt("expires_after_seconds"))
+        assertEquals(240, sent.getInt("interval_minutes"))
+        assertTrue("client should name the app: " + sent.getString("client"),
+            sent.getString("client").startsWith("Glance/"))
+    }
+
+    @Test
+    fun `the limits it sends are the ones it then enforces`() {
+        // A backend that obeys max_length to the character must not be refused.
+        serve(200, """{"title":"T","text":"""" + "x".repeat(100) + """"}""")
+        val outcome = runBlocking { Backend.fetch(settings(maxLength = 100)) }
+
+        val sent = org.json.JSONObject(seenBody)
+        assertEquals(100, sent.getInt("max_length"))
+        assertTrue("obeying the stated limit must be accepted, got $outcome",
+            outcome is Outcome.Content)
     }
 
     @Test
@@ -55,7 +79,7 @@ class BackendContractTest {
         assertNull("an empty credential must not become an empty header", seenAuth)
     }
 
-    // --- what Blip accepts ---------------------------------------------------
+    // --- what Glance accepts ---------------------------------------------------
 
     @Test
     fun `two hundred with title and text is content`() {
@@ -80,7 +104,7 @@ class BackendContractTest {
         assertEquals(Outcome.NothingToSay, runBlocking { Backend.fetch(settings()) })
     }
 
-    // --- what Blip refuses ---------------------------------------------------
+    // --- what Glance refuses ---------------------------------------------------
 
     @Test
     fun `text longer than max length is refused rather than trimmed`() {
@@ -132,7 +156,7 @@ class BackendContractTest {
     @Test
     fun `a redirect is not followed`() {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server!!.createContext("/blip") { exchange ->
+        server!!.createContext("/glance") { exchange ->
             exchange.responseHeaders.add("Location", "http://127.0.0.1:1/elsewhere")
             exchange.sendResponseHeaders(302, -1)
             exchange.close()
@@ -146,7 +170,7 @@ class BackendContractTest {
     fun `an unreachable backend is a failure`() {
         // Port 1 on loopback: nothing listens, and nothing is expected to.
         val settings = Settings(
-            url = "http://127.0.0.1:1/blip",
+            url = "http://127.0.0.1:1/glance",
             credential = "",
             checkDays = 0,
             checkHours = 4,
@@ -169,7 +193,7 @@ class BackendContractTest {
 
     private fun serve(status: Int, body: String?) {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server!!.createContext("/blip") { exchange ->
+        server!!.createContext("/glance") { exchange ->
             seenMethod = exchange.requestMethod
             seenAuth = exchange.requestHeaders.getFirst("Authorization")
             seenBody = exchange.requestBody.bufferedReader().readText()
@@ -191,13 +215,13 @@ class BackendContractTest {
         maxLength: Int = 120,
         credential: String = "",
     ) = Settings(
-        url = "http://127.0.0.1:" + server!!.address.port + "/blip",
+        url = "http://127.0.0.1:" + server!!.address.port + "/glance",
         credential = credential,
         checkDays = 0,
         checkHours = 4,
         checkMinutes = 0,
-        expiryMinutes = 10,
-        expirySeconds = 0,
+        expiryMinutes = 0,
+        expirySeconds = 30,
         maxLength = maxLength,
         lastRunFailed = false,
     )

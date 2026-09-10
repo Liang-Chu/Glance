@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.liamchu.blip"
+    namespace = "dev.liamchu.glance"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.liamchu.blip"
+        applicationId = "dev.liamchu.glance"
         // DESIGN.md "The stack": 26 is where a notification can carry its own lifetime.
         minSdk = 26
         targetSdk = 37

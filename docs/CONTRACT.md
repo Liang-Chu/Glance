@@ -4,7 +4,7 @@
 Everything the notification says is decided on the backend's side of it.*
 
 Owner: this repository defines the shape · **the client side is implemented and exercised against a
-real HTTP server**, on 2026-09-10, by `app/src/test/java/dev/liamchu/blip/BackendContractTest.kt`.
+real HTTP server**, on 2026-09-10, by `app/src/test/java/dev/liamchu/glance/BackendContractTest.kt`.
 `Backend.kt` is the whole of the client. No backend written by a person has answered it yet, and no
 run has happened on a phone — the `Verified` column names the test per clause, and says plainly where
 there is none.
@@ -21,18 +21,37 @@ adds no query parameters** — if the backend wants a path, it belongs in the UR
 POST <the configured URL>
 Content-Type: application/json
 Authorization: Bearer <the configured credential>     ← omitted entirely when the credential is empty
-User-Agent: Blip/<version>
+User-Agent: Glance/<version>
 
-{"max_length": 120}
+{
+  "max_length": 120,
+  "title_max_length": 32,
+  "expires_after_seconds": 30,
+  "interval_minutes": 240,
+  "client": "Glance/0.1"
+}
 ```
+
+Every limit the app will enforce is stated in the request, so a backend never has to hardcode one of
+this project's numbers or guess at it. The two that matter are `max_length` and `title_max_length`:
+exceed either and the run fails.
+
+| Field | Means |
+| --- | --- |
+| `max_length` | the most characters `text` may have |
+| `title_max_length` | the most characters `title` may have |
+| `expires_after_seconds` | how long the notification will be visible once posted |
+| `interval_minutes` | how long until the next call, so a backend can pace itself |
+| `client` | the app and version asking |
 
 | Clause | Shape | Verified |
 | --- | --- | --- |
-| method | `POST`, always | test "posts the max length to the configured url" |
+| method | `POST`, always | test "posts to the configured url" |
 | URL | the configured URL verbatim; no path appended, no query added | same test — the server answers one path only, so an appended path would miss it |
+| limits it states | are the limits it then enforces | test "the limits it sends are the ones it then enforces" |
 | `Content-Type` | `application/json` | **implemented, not asserted by any test** |
 | `Authorization` | `Bearer <credential>`; the header is **absent**, not empty, when no credential is set | tests "sends the credential as a bearer token" and "omits the authorization header entirely when no credential is set" |
-| body | a JSON object with exactly one member, `max_length`, an integer count of characters | test "posts the max length to the configured url" |
+| body | a JSON object carrying the fields above | test "tells the backend every limit it has to work within" |
 | redirects | not followed. A redirect is a failed run | test "a redirect is not followed" |
 | timeouts | 10 s to connect, 30 s to read | **implemented, not asserted by any test** |
 | transport | `http` or `https`; cleartext is permitted so a backend on the user's own network works | manifest sets `usesCleartextTraffic`; needs a device to confirm |
@@ -75,7 +94,7 @@ run shows".
 A backend that always has something to say, in any language, is this much:
 
 ```
-POST /blip  ->  200
+POST /glance  ->  200
 {"title": "Kotlin", "text": "buildList { } beats mutableListOf when you only build the list once."}
 ```
 
@@ -87,7 +106,7 @@ Testable before the app exists:
 curl -sS -X POST "$URL" \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $CREDENTIAL" \
-  -d '{"max_length": 120}' -i
+  -d '{"max_length": 120, "title_max_length": 32}' -i
 ```
 
 **Breaking a clause is a decision**, recorded and coordinated before it ships — never an edit to this

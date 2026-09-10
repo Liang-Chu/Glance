@@ -18,7 +18,7 @@ installed. `local.properties` points at it and is not committed.
 
 **Verify**: `app/build/outputs/apk/debug/app-debug.apk` exists and
 `"$ANDROID_HOME/build-tools/37.0.0/aapt2.exe" dump badging app/build/outputs/apk/debug/app-debug.apk`
-reports `dev.liamchu.blip`.
+reports `dev.liamchu.glance`.
 **On failure**: a `C3 breach` means split the file named — do not raise the number; that is a
 decision, and [`CONSTRAINTS.md`](CONSTRAINTS.md) says how it is recorded. A failing contract test
 means either the code or [`CONTRACT.md`](CONTRACT.md) is wrong; decide which before changing either.
@@ -29,15 +29,15 @@ means either the code or [`CONTRACT.md`](CONTRACT.md) is wrong; decide which bef
 **Preconditions**: USB debugging on, the phone authorised, `adb devices` listing it.
 
 1. `"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/app-debug.apk`
-2. Open Blip, fill in the settings, allow notifications when asked.
-3. In the Even Realities app, under Notifications, allow **Blip**.
+2. Open Glance, fill in the settings, allow notifications when asked.
+3. In the Even Realities app, under Notifications, allow **Glance**.
 4. Press **Save and check now** — one check runs immediately, without waiting out the interval.
 5. Then press **Save and schedule** and leave the phone alone to prove the unattended path.
 
 **Verify**: the notification appears on the phone and is readable on the glasses. Neither one alone
 is the verification, and step 4 proves only the call and the notification — **not** that the app
 wakes itself, which is what step 5 is for.
-**On failure**: `adb logcat -s Blip:* WM-WorkerWrapper:*` while a run is due.
+**On failure**: `adb logcat -s Glance:* WM-WorkerWrapper:*` while a run is due.
 
 ## 3 · Land a change
 
