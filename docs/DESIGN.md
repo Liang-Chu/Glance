@@ -16,6 +16,10 @@
 | Is the search engine or the LLM vendor fixed by this project? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: "something like brave") |
 | What happens when a provider is missing or unreachable? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"**, applying [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" |
 | How often does a tip appear? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
+| Why does a notification expire, and what cancels it? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10: "i dont want the user have to deal with the notification on the phone again") |
+| How is the same tip kept from appearing again? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
+| Which keyword does a run use? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
+| What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
 
 Grep the whole file before concluding a question is undecided.
 
@@ -37,8 +41,17 @@ transport of its own to the glasses**: it does not pair with them, scan for them
 protocol to them. Seen from this repository, the glasses are one more consumer of ordinary Android
 notifications, and the app's job ends when Android accepts the notification.
 
-What is still open about this — how long "bounded" is, and whether a withdrawal from the phone
-reaches the glasses at all — is tracked in [`BACKLOG.md`](BACKLOG.md).
+**Why it expires**, recorded from the owner, 2026-09-10, verbatim: *"the reason i want to cancel it
+is cause i dont want the user have to deal with the notification on the phone again"*. The expiry
+exists to keep the phone's notification shade clear, not to control the glasses. What the glasses do
+with a withdrawal is therefore interesting but not load-bearing: this requirement is satisfied on the
+phone whatever they do.
+
+The lifetime is carried **on the notification itself**, so Android clears it whether or not this app
+is running. Nothing schedules a cancellation, and no component has to survive to do the clearing.
+
+How long the lifetime is remains the user's setting, and what the glasses show is tracked in
+[`BACKLOG.md`](BACKLOG.md).
 
 ### Acceptance
 
@@ -46,6 +59,8 @@ reaches the glasses at all — is tracked in [`BACKLOG.md`](BACKLOG.md).
 - `purpose-2` Every notification the app posts leaves the notification shade with no user action.
 - `purpose-3` No source file in this repository connects to the glasses: nothing in it pairs, scans,
   or speaks a link protocol to them.
+- `purpose-4` A posted notification clears itself with the app force-stopped and no work scheduled;
+  the lifetime rides on the notification, not on something that must still be alive to fire.
 
 ## 2 · Where a tip comes from
 
@@ -80,9 +95,14 @@ Truncating a search snippet because the LLM did not answer would be exactly the 
 [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" forbids: the notification would
 claim to be a tip while carrying something else.
 
-What is still open about this — how a keyword is chosen each round, how a tip already shown is kept
-from returning, what the length setting counts, where credentials are stored, and how a failed run
-tells the user anything — is tracked in [`BACKLOG.md`](BACKLOG.md).
+**Which keyword, and no repeats.** Keywords are used **in rotation**, so one keyword cannot take
+consecutive runs while others go unused. The app **remembers the results it has already shown** and
+skips them, which is what stops a fixed keyword set from returning the same top results every few
+hours. That memory is a local store on the device: it is what the app knows about itself, it is sent
+nowhere, and it is the one piece of state a run carries between invocations.
+
+What is still open about this — when that memory forgets a result, and what the length setting
+counts — is tracked in [`BACKLOG.md`](BACKLOG.md).
 
 ### Acceptance
 
@@ -98,3 +118,34 @@ tells the user anything — is tracked in [`BACKLOG.md`](BACKLOG.md).
   no repeating work more often than that setting.
 - `tip-source-6` The length of a notification and the time it stops displaying are both user
   settings, and neither is a constant in the source.
+- `tip-source-7` A result already shown is not shown again while it is remembered, and the store of
+  what was shown never leaves the device.
+- `tip-source-8` Keywords advance in rotation: with more than one configured, no keyword is used
+  twice before every other has been used once.
+
+## 3 · What a failed run shows
+
+> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a tip comes from".
+> **Decides**: what the user sees when a provider cannot be reached.
+
+A provider this project does not run can be unreachable for ordinary reasons — an LLM on the user's
+home network is simply absent when the phone is on mobile data. That is the expected case, not an
+exceptional one.
+
+The app **tells the user once**. On the first failed run it posts a notification saying the run
+failed; it stays quiet through every further failure, and only becomes able to speak again after a
+run has succeeded. Silence would let the app stay broken for days unnoticed; a notification per
+attempt would nag all day on mobile data.
+
+That notification is **not a tip and does not look like one**. It carries no text from a search
+result, because [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" is what makes the
+run fail in the first place — dressing the failure in retrieved text would smuggle back exactly the
+substitute the constraint exists to prevent.
+
+### Acceptance
+
+- `failure-1` Consecutive failed runs produce one notification between them, not one each; the app
+  regains its voice only after a run succeeds.
+- `failure-2` A failure notification carries no text originating from a search result or a provider
+  response.
+- `failure-3` A failed run posts no tip, and the store of shown results is unchanged by it.
