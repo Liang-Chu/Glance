@@ -32,6 +32,14 @@ object Backend {
     private const val READ_TIMEOUT_MS = 30_000
     private val USER_AGENT = "Glance/" + BuildConfig.VERSION_NAME
 
+    /**
+     * What the backend is told it is talking to. Deliberately unversioned: a
+     * backend that branched on the version would break on an upgrade it never
+     * asked for. The User-Agent above carries the version for debugging, where a
+     * changing value costs nothing.
+     */
+    private const val CLIENT_NAME = "Glance"
+
     suspend fun fetch(watcher: Watcher): Outcome = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
@@ -57,7 +65,7 @@ object Backend {
                 .put("title_max_length", TITLE_MAX_CHARS)
                 .put("expires_after_seconds", watcher.expiryTotalSeconds)
                 .put("interval_minutes", watcher.intervalMinutes)
-                .put("client", USER_AGENT)
+                .put("client", CLIENT_NAME)
                 .toString()
             connection.outputStream.use { it.write(request.toByteArray(Charsets.UTF_8)) }
 

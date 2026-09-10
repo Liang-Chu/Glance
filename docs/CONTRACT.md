@@ -29,7 +29,7 @@ User-Agent: Glance/<version>
   "title_max_length": 32,
   "expires_after_seconds": 3,
   "interval_minutes": 1440,
-  "client": "Glance/0.1"
+  "client": "Glance"
 }
 ```
 
@@ -44,7 +44,7 @@ exceed either and the run fails.
 | `title_max_length` | the most characters `title` may have |
 | `expires_after_seconds` | how long the notification will be visible once posted |
 | `interval_minutes` | how long until the next call, so a backend can pace itself |
-| `client` | the app and version asking |
+| `client` | the app asking. Unversioned on purpose, so a backend cannot branch on a version it did not choose; the `User-Agent` header carries the version for debugging |
 
 | Clause | Shape | Verified |
 | --- | --- | --- |

@@ -48,8 +48,8 @@ class BackendContractTest {
         assertEquals(30, sent.getInt("expires_after_seconds"))
         assertEquals(240, sent.getInt("interval_minutes"))
         assertEquals("Test watcher", sent.getString("watcher"))
-        assertTrue("client should name the app: " + sent.getString("client"),
-            sent.getString("client").startsWith("Glance/"))
+        assertEquals("unversioned, so a backend cannot branch on it",
+            "Glance", sent.getString("client"))
     }
 
     @Test

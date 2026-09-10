@@ -9,8 +9,8 @@ feature — but it posts an ordinary Android notification, so anything that read
 **Glance has no backend of its own.** No API keys, no accounts, no server. A fresh install talks to
 nothing until you point it at something you control.
 
-You can have several **watchers**, each named, each with its own backend, schedule and limits. They
-share nothing: separate notifications, separate failures, separate schedules.
+Several **watchers** can run at once, each named, each with its own backend and settings. They share
+nothing: separate notifications, separate failures, separate schedules.
 
 ## Install
 
@@ -25,17 +25,15 @@ standard Android build.
 
 ## Set it up
 
-1. **+ NEW WATCHER** — give it a name, a backend URL, and a credential if your backend wants one.
+1. **+ NEW WATCHER** — name, backend URL, and a credential if your backend wants one.
 2. **Save and check now** — runs one check immediately instead of waiting out the interval.
 3. Allow notifications when asked.
 4. In the Even Realities app, under **Notifications**, allow **Glance**.
 
-A new watcher starts at once a day, gone after three seconds, 80 characters.
-
 ## Write a backend
 
-Full specification: [`docs/CONTRACT.md`](docs/CONTRACT.md). Working reference implementation:
-[`examples/test-backend/`](examples/test-backend/), about a hundred lines of dependency-free Python.
+Specification: [`docs/CONTRACT.md`](docs/CONTRACT.md). Reference implementation:
+[`examples/test-backend/`](examples/test-backend/), dependency-free Python.
 
 Glance sends one `POST`, with `Authorization: Bearer <credential>` when you set one:
 
@@ -46,7 +44,7 @@ Glance sends one `POST`, with `Authorization: Bearer <credential>` when you set 
   "title_max_length": 32,
   "expires_after_seconds": 3,
   "interval_minutes": 1440,
-  "client": "Glance/0.1"
+  "client": "Glance"
 }
 ```
 
@@ -61,10 +59,9 @@ It expects one of three answers:
 | `204` | none | nothing, silently — not an error |
 | anything else | ignored | one failure notice, then quiet until a run succeeds |
 
-Both members are **required and non-empty** — a missing one is a failed run, not a blank
-notification. Glance **does not truncate**: exceed `max_length` or `title_max_length` and the run
-fails. Your URL is called exactly as typed, redirects are not followed, and there is one attempt per
-run with no retry.
+`title` and `text` are both **required and non-empty**, and Glance **does not truncate** — exceed a
+limit and the run fails rather than showing something you did not write. One attempt per run, no
+retry, redirects not followed.
 
 Plain `http` works, so a box on your own network is fine — but the credential crosses the network in
 the clear, so use `https` off a network you trust.
@@ -73,20 +70,15 @@ the clear, so use `https` off a network you trust.
 
 - **Checks happen at most every 15 minutes** — WorkManager's floor for repeating work. Ask for less
   and Android silently rounds up, so Glance refuses instead.
-- **Notifications live at least 3 seconds**, or they risk vanishing before the glasses are handed
-  them.
-- **How much text the glasses display is unmeasured.** 86 characters have been read; the ceiling is
-  unknown — [`docs/reference/g2-notifications.md`](docs/reference/g2-notifications.md).
-- **Intervals are best-effort.** Android batches background work when the device is idle.
+- **Intervals are best-effort.** Android batches background work when the device is idle, so a check
+  can land late.
+- **How much text the glasses display is unmeasured** —
+  [`docs/reference/g2-notifications.md`](docs/reference/g2-notifications.md).
 
 ## Documentation
 
-Everything starts at [`docs/README.md`](docs/README.md). [`DESIGN.md`](docs/DESIGN.md) is why anything
-is the way it is; [`STATUS.md`](docs/STATUS.md) is what is actually true right now, including what has
-never been run.
-
-Contributing: read [`docs/PROCESS.md`](docs/PROCESS.md). The rule that matters most is that
-**documentation moves in the same commit as the code**.
+Start at [`docs/README.md`](docs/README.md). [`STATUS.md`](docs/STATUS.md) is what is actually true
+right now, including what has never been run. Contributing: [`docs/PROCESS.md`](docs/PROCESS.md).
 
 ## Licence
 
