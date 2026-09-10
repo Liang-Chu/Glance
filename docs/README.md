@@ -8,7 +8,9 @@ The only entrance. Every live document is linked from here.
    Grep its decision index before designing anything.
 2. **[`STATUS.md`](STATUS.md)** — what is true right now: what exists, what runs.
 3. **[`PROCESS.md`](PROCESS.md)** — how work is done today: run, deploy, release, review.
-4. **[`BACKLOG.md`](BACKLOG.md)** — the only list of open work.
+4. **[`CONTRACT.md`](CONTRACT.md)** — the shape of the call to your backend. Read this before
+   writing one.
+5. **[`BACKLOG.md`](BACKLOG.md)** — the only list of open work.
 
 ## The map
 
@@ -32,7 +34,7 @@ paths are written plainly here rather than linked, because there is nothing to l
 | `DECISIONS` | `docs/decisions/NNNN-slug.md` | ADRs — append-only, never retired | reserved — first "we should have written down why" |
 | `RETIRED` | `docs/retired/` + `INDEX.md` | superseded design, finished plans, dead process, evidence | reserved — first doc goes stale |
 | `REFERENCE` | `docs/reference/` | facts about things we do not control: the G2, its companion app, Android's notification behaviour | reserved — first fact we depend on but do not control |
-| `CONTRACT` | `docs/CONTRACT.md` | the interface across a boundary that both sides depend on | reserved — first interface another party depends on |
+| `CONTRACT` | [`CONTRACT.md`](CONTRACT.md) | the shape of the call between this app and the backend the user runs | active |
 | `GLOSSARY` | `docs/GLOSSARY.md` | the closed vocabulary: one definition per term | reserved — first term used with two meanings in one week |
 | `MEASUREMENTS` | `docs/measurements/<campaign>-<date>/` | raw data behind any number a decision rests on, plus that campaign's write-up | reserved — first decision backed by numbers |
 | `REPORT` | `docs/REPORT.md` | the latest snapshot — an audit, a nightly run, a review result. Never authority | reserved — first audit or run whose output someone will re-read |

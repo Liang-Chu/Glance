@@ -10,18 +10,15 @@
 | How does a notification get from the phone to the glasses? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10: "using their notification feature") |
 | Do we pair with, scan for, or speak a link protocol to the glasses? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10) |
 | Does a notification stay on screen until someone dismisses it? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10: "expire automatically") |
-| Where does the text of a tip come from? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| Does this project run a server, or hold any API key or account of its own? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: "i dont want to host a server for this one") |
-| How does the app reach an LLM the user runs themselves, versus a hosted LLM API? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| Is the LLM vendor fixed by this project? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| Does the app search the web for material? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10: ruled out — "Just use it as notification generater") |
-| Is a tip a sourced fact? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| What happens when a provider is missing or unreachable? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"**, applying [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" |
-| How often does a tip appear? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
 | Why does a notification expire, and what cancels it? | **[`DESIGN.md`](DESIGN.md) "Purpose and delivery path"** (owner, 2026-09-10: "i dont want the user have to deal with the notification on the phone again") |
-| How is the same tip kept from appearing again? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
-| Which keyword does a run use? | **[`DESIGN.md`](DESIGN.md) "Where a tip comes from"** (owner, 2026-09-10) |
+| Where does the text of a notification come from? | **[`DESIGN.md`](DESIGN.md) "Where a notification's content comes from"** (owner, 2026-09-10: "accept some backend input and make them a notification") |
+| Does the app choose topics, write prompts, or call an LLM? | **[`DESIGN.md`](DESIGN.md) "Where a notification's content comes from"** (owner, 2026-09-10: ruled out) |
+| Does this project run a server, or hold any API key or account of its own? | **[`DESIGN.md`](DESIGN.md) "Where a notification's content comes from"** (owner, 2026-09-10: "i dont want to host a server for this one") |
+| What is the exact shape of the call to the backend? | **[`CONTRACT.md`](CONTRACT.md)** |
+| What happens to a response longer than the length setting? | **[`CONTRACT.md`](CONTRACT.md) "Responses"** (owner, 2026-09-10: a breach, not something to trim) |
+| What can the user change? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** (owner, 2026-09-10) |
 | What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
+| What is the app written in, and what runs the interval? | **[`DESIGN.md`](DESIGN.md) "The stack"** |
 
 Grep the whole file before concluding a question is undecided.
 
@@ -35,7 +32,8 @@ concise notification which expire automatically."* and *"My goal is to use that 
 to Even G2 automatically using their notification feature."*
 
 This is an **Android application**. What it produces is Android notifications, and each one **stops
-being displayed after a bounded lifetime without anybody dismissing it**.
+being displayed after a bounded lifetime without anybody dismissing it**. Where their text comes from
+is [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
 
 Those notifications reach the **Even G2** glasses through **the G2's own notification feature** — the
 path that already carries phone notifications to the glasses. This project therefore builds **no
@@ -52,8 +50,9 @@ phone whatever they do.
 The lifetime is carried **on the notification itself**, so Android clears it whether or not this app
 is running. Nothing schedules a cancellation, and no component has to survive to do the clearing.
 
-How long the lifetime is remains the user's setting, and what the glasses show is tracked in
-[`BACKLOG.md`](BACKLOG.md).
+**The app runs without being opened.** The owner, 2026-09-10: *"It should able to run in the
+background silencly."* Once the settings are filled in, the app has no reason to be launched again,
+and nothing it does requires a screen.
 
 ### Acceptance
 
@@ -63,109 +62,137 @@ How long the lifetime is remains the user's setting, and what the glasses show i
   or speaks a link protocol to them.
 - `purpose-4` A posted notification clears itself with the app force-stopped and no work scheduled;
   the lifetime rides on the notification, not on something that must still be alive to fire.
+- `purpose-5` Notifications keep appearing across a reboot with the app never opened again.
 
-## 2 · Where a tip comes from
+## 2 · Where a notification's content comes from
 
 > **Prerequisites**: none.
-> **Decides**: what produces the text of a notification, which outside services are involved, and
-> who supplies the credentials for them.
+> **Decides**: what produces the text of a notification, and what this app is responsible for.
 
-Recorded from the owner, 2026-09-10, verbatim: *"the first thing i want it to do is to setup some
-keywords of the field and lookup some tip from that field using something like brave and make it
-concise enough asa notification(customize length) and show a notification. the notification should be
-expire in a time the user set."*, *"i want to make it configable"*, *"the user can either choose to
-stream info from their server, or setup the api key which only stay on their own device to do the
-summary"*, and *"i dont want to host a server for this one"*. The owner chose a fixed interval —
-a tip every N hours — over firing at set times of day or on a manual tap.
+Recorded from the owner, 2026-09-10, verbatim: *"it eventually just something accept some backend
+input and make them a notification that will expire"*, *"i expect the user build the backend
+themselves"*, and *"i dont want to host a server for this one"*.
 
-**The pipeline.** A timer fires on an interval the user sets. The app takes a keyword from a set the
-user configured, asks an **LLM** for a tip in that field at a length the user set, and posts what
-comes back as an Android notification that stops displaying after a time the user set.
+**The app is a client and nothing else.** On an interval the user sets, it calls **one backend the
+user runs**, at a URL and with a credential the user supplied, and turns the response into a
+notification that expires. It does not decide what the notification says. The exact shape of that
+call is [`CONTRACT.md`](CONTRACT.md).
 
-~~The material came from a web search provider, and the LLM condensed it.~~ → **the search step is
-ruled out** (owner, 2026-09-10: *"i dont think this gonna be capable of search in the app properly.
-it is hard to lookup some facts that is both reliable and usable. Just use it as notification
-generater."*). No search provider is configured, called, or named anywhere.
+~~The app chose a keyword, asked an LLM for something in that field, and remembered what it had
+already posted so as not to repeat itself.~~ → **all content generation is ruled out of the app**
+(owner, 2026-09-10: *"You can define how the api gonna looks like since i expect the user build the
+backend themselves"*). Topic selection, prompts, model choice, and repeat suppression are the
+backend's concern and are absent here. **The app keeps no state beyond its settings** — a run reads
+settings, makes one call, and posts or does not post.
 
-**A tip is model output, not a sourced fact.** Dropping retrieval trades grounding for usability
-deliberately, and the app must not spend the difference by implying it has a source it does not
-have: a notification carries the tip and nothing that reads as a citation, a reference, or a
-verification.
-
-**No service in that pipeline belongs to this project.** This project runs no server, holds no API
-key, and pays for no account. Every outside service is reached with configuration the user supplies
-and which stays on the user's own device. The LLM is reachable two ways — an endpoint the user runs
-themselves, or a hosted LLM API the user has a key for — and both are the same shape, **a base URL
-plus a credential**, so the app carries **one provider mechanism rather than a branch per vendor**,
-per [`CONSTRAINTS.md`](CONSTRAINTS.md) "C4 — Solve it structurally, not by stacking cases". No vendor
-is named in the code.
-
-**When a provider is missing or unreachable, no tip is posted and no substitute text is invented.**
-Truncating a search snippet because the LLM did not answer would be exactly the defaulting that
-[`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" forbids: the notification would
-claim to be a tip while carrying something else.
-
-**Which keyword, and no repeats.** Keywords are used **in rotation**, so one keyword cannot take
-consecutive runs while others go unused. The app **remembers the tips it has recently posted** and
-gives them to the LLM, so that it is asked for something it has not already said. That memory is a
-local store on the device: it is what the app knows about itself, it is sent to no one but the
-user's own configured provider, and it is the one piece of state a run carries between invocations.
-
-This is a weaker guarantee than it looks: a model given its own recent output can still repeat
-itself, where skipping a known result could not. Repetition is therefore a quality problem to
-measure, not something the design has closed.
-
-What is still open about this — how far back that memory reaches, whether a repeat is rejected
-outright, what the app asks the LLM for in the first place, and what the length setting counts — is
-tracked in [`BACKLOG.md`](BACKLOG.md).
+**No service this app calls belongs to this project.** It runs no server, holds no API key, and pays
+for no account. A fresh install talks to nothing until the user gives it a URL.
 
 ### Acceptance
 
-- `tip-source-1` The repository contains no API key, no endpoint this project operates, and no
-  account this project pays for. A fresh install talks to nothing until the user configures it.
-- `tip-source-2` Every outside service the app calls is reached at a base URL that came from user
-  configuration; changing that configuration changes which endpoint is called, with no code change.
-- `tip-source-3` An endpoint the user runs and a hosted vendor API are served by one code path. No
-  vendor name appears in a conditional.
-- `tip-source-4` When a configured provider is absent or unreachable, the app posts no notification
-  and writes no substitute text.
-- `tip-source-5` The interval between tips is a user setting counted in hours, and the app schedules
-  no repeating work more often than that setting.
-- `tip-source-6` The length of a notification and the time it stops displaying are both user
-  settings, and neither is a constant in the source.
-- `tip-source-8` Keywords advance in rotation: with more than one configured, no keyword is used
-  twice before every other has been used once.
-- `tip-source-9` The tips recently posted are given to the provider on each run, and that store
-  reaches nothing but the provider the user configured.
-- `tip-source-10` No search provider is called, configured, or named in the source.
-- `tip-source-11` A notification carries the tip and nothing that reads as a citation, a source, or
-  a claim of verification.
+- `content-1` The repository contains no API key, no endpoint this project operates, and no account
+  this project pays for. A fresh install with no URL configured makes no network call.
+- `content-2` The only host the app contacts is the one in the user's configured URL.
+- `content-3` The source contains no prompt, no model name, no topic list, and no vendor name.
+- `content-4` The app stores nothing between runs except its settings: no history of what it posted,
+  no cache of responses.
+- `content-5` When the backend cannot be reached or breaks [`CONTRACT.md`](CONTRACT.md), the app
+  posts no notification and writes no substitute text.
 
-Retired: tip-source-7 (search step dropped, 2026-09-10).
+Retired: tip-source-1 … tip-source-11 (the app stopped generating content, 2026-09-10).
 
-## 3 · What a failed run shows
+## 3 · What the user can change
 
-> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a tip comes from".
-> **Decides**: what the user sees when a provider cannot be reached.
+> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
+> **Decides**: the complete set of settings, and that there is nothing else to configure.
 
-A provider this project does not run can be unreachable for ordinary reasons — an LLM on the user's
-home network is simply absent when the phone is on mobile data. That is the expected case, not an
+Recorded from the owner, 2026-09-10, verbatim: *"the backend credential and url, expiration and check
+frequency and notification max length should be editable and thats it"*.
+
+Five settings, and **that list is closed** — anything a later version wants to vary is a decision
+recorded here, not a field quietly added to a screen.
+
+| Setting | Unit | Starting value |
+| --- | --- | --- |
+| Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
+| Credential | opaque string, may be left empty | empty |
+| Check frequency | hours | 4 |
+| Expiration | minutes | 10 |
+| Maximum length | characters | 120 |
+
+**The credential stays on the device.** It lives in the app's private storage like every other
+setting, the app opts out of Android backup so it is not carried off to a cloud account, and nothing
+writes it to a log. There is no separate secret store: on a device that is not rooted, app-private
+storage is the boundary, and pretending otherwise would be ceremony rather than protection.
+
+The starting values are what a fresh install holds before the user touches anything, and each is
+written in one place. The maximum-length starting value is a **guess pending measurement** — what the
+glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
+
+### Acceptance
+
+- `settings-1` The settings screen offers exactly these five fields and no others.
+- `settings-2` Each starting value appears in exactly one place in the source.
+- `settings-3` A URL that is not an absolute `http` or `https` URL is refused when it is entered, not
+  at the moment a run tries to use it.
+- `settings-4` Changing the check frequency changes the interval of the next scheduled run without
+  the app being reinstalled.
+- `settings-5` The credential is held in the app's private storage, and the app opts out of Android
+  backup so it cannot leave the device that way.
+- `settings-6` No credential, and no part of one, is ever written to a log or into the text of a
+  notification.
+
+## 4 · What a failed run shows
+
+> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
+> **Decides**: what the user sees when the backend cannot be reached or breaks the contract.
+
+A backend this project does not run can be unreachable for ordinary reasons — one on the user's home
+network is simply absent when the phone is on mobile data. That is the expected case, not an
 exceptional one.
 
-The app **tells the user once**. On the first failed run it posts a notification saying the run
-failed; it stays quiet through every further failure, and only becomes able to speak again after a
+The app **tells the user once**. On the first failed run it posts a notification saying the run failed
+and why; it stays quiet through every further failure, and becomes able to speak again only after a
 run has succeeded. Silence would let the app stay broken for days unnoticed; a notification per
 attempt would nag all day on mobile data.
 
-That notification is **not a tip and does not look like one**. It carries no text from a search
-result, because [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" is what makes the
-run fail in the first place — dressing the failure in retrieved text would smuggle back exactly the
+That notification is **not content and does not look like it**. It carries no text from the backend's
+response body, because [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" is what makes
+the run fail in the first place — dressing the failure in the response would smuggle back exactly the
 substitute the constraint exists to prevent.
+
+**A backend with nothing to say is not a failure.** [`CONTRACT.md`](CONTRACT.md) gives it a way to say
+so, and a run that ends that way posts nothing, stays silent, and leaves the failure state untouched.
 
 ### Acceptance
 
 - `failure-1` Consecutive failed runs produce one notification between them, not one each; the app
   regains its voice only after a run succeeds.
-- `failure-2` A failure notification carries no text originating from a search result or a provider
-  response.
-- `failure-3` A failed run posts no tip, and the store of shown results is unchanged by it.
+- `failure-2` A failure notification carries no text originating from the backend's response body.
+- `failure-3` A run in which the backend reports it has nothing to say posts nothing, and neither
+  raises nor clears the failure state.
+
+## 5 · The stack
+
+> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Purpose and delivery path".
+> **Decides**: what the app is written in, and what makes the interval survive Android.
+
+**Kotlin, Jetpack Compose for the settings screen, WorkManager for the interval, DataStore for the
+settings.** Minimum SDK **26**, because the notification carries its own lifetime and that arrived
+there; compile and target **36**.
+
+**WorkManager is the load-bearing choice.** A repeating background job survives Doze only when the
+operating system is the thing scheduling it, and WorkManager is the API that exists for that. A
+hand-rolled alarm loop, a long-lived foreground service, or a shell cron all fight power management
+and lose, which is why the automation tools that do this today are unreliable at it. Its floor is
+fifteen minutes; the frequency setting is counted in hours, so the floor is never in reach.
+
+There is **no database**. The app keeps nothing between runs but its settings, so DataStore is the
+whole of its storage.
+
+### Acceptance
+
+- `stack-1` The app schedules its repeating work through WorkManager, and no alarm loop or long-lived
+  service exists to do it instead.
+- `stack-2` The app declares no database and no persistent store other than the settings.
+- `stack-3` A release build installs and runs on a device at minimum SDK 26.
