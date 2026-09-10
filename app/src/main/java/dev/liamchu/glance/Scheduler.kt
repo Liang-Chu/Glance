@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
 /**
@@ -15,29 +16,33 @@ import java.util.concurrent.TimeUnit
  * survives Doze only when the operating system is the thing scheduling it. It
  * also re-registers itself after a reboot, which is criterion purpose-5.
  *
- * The interval arrives already in minutes and already checked against
- * WorkManager's floor — see intervalProblem in Settings.kt. Nothing here clamps
- * it, because a clamp is a silent lie about how often the user will be told.
+ * One schedule per watcher, named after its id, so watchers cannot disturb one
+ * another and deleting one takes only its own work with it.
  */
 object Scheduler {
 
-    private const val WORK_NAME = "glance-poll"
-    private const val NOW_WORK_NAME = "glance-now"
+    const val KEY_WATCHER_ID = "watcher_id"
 
-    fun schedule(context: Context, intervalMinutes: Long) {
+    private val onlyWhenOnline = Constraints.Builder()
+        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .build()
+
+    private fun repeatingName(id: Int) = "glance-watcher-" + id
+
+    private fun immediateName(id: Int) = "glance-now-" + id
+
+    fun schedule(context: Context, watcher: Watcher) {
         val request = PeriodicWorkRequestBuilder<GlanceWorker>(
-            intervalMinutes,
+            watcher.intervalMinutes,
             TimeUnit.MINUTES,
-        ).setConstraints(
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
-        ).build()
+        ).setConstraints(onlyWhenOnline)
+            .setInputData(workDataOf(KEY_WATCHER_ID to watcher.id))
+            .build()
 
-        // UPDATE so criterion settings-4 holds: a new frequency reaches the next
-        // run without a reinstall, and without restarting the period from zero.
+        // UPDATE so criterion settings-4 holds: a new interval reaches the next run
+        // without a reinstall, and without restarting the period from zero.
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-            WORK_NAME,
+            repeatingName(watcher.id),
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
@@ -52,15 +57,20 @@ object Scheduler {
      * to be proven, and a check that ran because a button was pressed proves the
      * call and the notification, not the waking up.
      */
-    fun checkNow(context: Context) {
+    fun checkNow(context: Context, watcher: Watcher) {
         val request = OneTimeWorkRequestBuilder<GlanceWorker>()
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                    .build()
-            ).build()
+            .setConstraints(onlyWhenOnline)
+            .setInputData(workDataOf(KEY_WATCHER_ID to watcher.id))
+            .build()
 
         WorkManager.getInstance(context)
-            .enqueueUniqueWork(NOW_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            .enqueueUniqueWork(immediateName(watcher.id), ExistingWorkPolicy.REPLACE, request)
+    }
+
+    /** Deleting a watcher must stop it waking up, not merely hide it. */
+    fun cancel(context: Context, watcherId: Int) {
+        val manager = WorkManager.getInstance(context)
+        manager.cancelUniqueWork(repeatingName(watcherId))
+        manager.cancelUniqueWork(immediateName(watcherId))
     }
 }

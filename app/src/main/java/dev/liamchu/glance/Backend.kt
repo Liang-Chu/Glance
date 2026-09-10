@@ -32,10 +32,10 @@ object Backend {
     private const val READ_TIMEOUT_MS = 30_000
     private val USER_AGENT = "Glance/" + BuildConfig.VERSION_NAME
 
-    suspend fun fetch(settings: Settings): Outcome = withContext(Dispatchers.IO) {
+    suspend fun fetch(watcher: Watcher): Outcome = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
-            connection = (URL(settings.url).openConnection() as HttpURLConnection).apply {
+            connection = (URL(watcher.url).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 // A redirect is a failed run: the app calls the URL it was given, verbatim.
                 instanceFollowRedirects = false
@@ -44,18 +44,19 @@ object Backend {
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json")
                 setRequestProperty("User-Agent", USER_AGENT)
-                if (settings.credential.isNotEmpty()) {
-                    setRequestProperty("Authorization", "Bearer " + settings.credential)
+                if (watcher.credential.isNotEmpty()) {
+                    setRequestProperty("Authorization", "Bearer " + watcher.credential)
                 }
             }
 
             // Everything the backend needs in order to answer well, and nothing
             // it could not have worked out for itself. CONTRACT.md "The call".
             val request = JSONObject()
-                .put("max_length", settings.maxLength)
+                .put("watcher", watcher.name)
+                .put("max_length", watcher.maxLength)
                 .put("title_max_length", TITLE_MAX_CHARS)
-                .put("expires_after_seconds", settings.expiryTotalSeconds)
-                .put("interval_minutes", settings.intervalMinutes)
+                .put("expires_after_seconds", watcher.expiryTotalSeconds)
+                .put("interval_minutes", watcher.intervalMinutes)
                 .put("client", USER_AGENT)
                 .toString()
             connection.outputStream.use { it.write(request.toByteArray(Charsets.UTF_8)) }
@@ -64,7 +65,7 @@ object Backend {
                 HttpURLConnection.HTTP_NO_CONTENT -> Outcome.NothingToSay
                 HttpURLConnection.HTTP_OK -> parse(
                     connection.inputStream.bufferedReader().use { it.readText() },
-                    settings.maxLength,
+                    watcher.maxLength,
                 )
                 else -> Outcome.Failed("backend returned " + code)
             }

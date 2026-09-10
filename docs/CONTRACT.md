@@ -24,6 +24,7 @@ Authorization: Bearer <the configured credential>     ← omitted entirely when 
 User-Agent: Glance/<version>
 
 {
+  "watcher": "Kotlin tips",
   "max_length": 120,
   "title_max_length": 32,
   "expires_after_seconds": 30,
@@ -38,6 +39,7 @@ exceed either and the run fails.
 
 | Field | Means |
 | --- | --- |
+| `watcher` | the name the user gave this watcher, so one backend can serve several |
 | `max_length` | the most characters `text` may have |
 | `title_max_length` | the most characters `title` may have |
 | `expires_after_seconds` | how long the notification will be visible once posted |

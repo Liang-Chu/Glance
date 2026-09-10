@@ -3,12 +3,12 @@ package dev.liamchu.glance
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
+import org.json.JSONArray
+import org.json.JSONException
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -17,112 +17,75 @@ private val Context.store: DataStore<Preferences> by preferencesDataStore(name =
 private const val MINUTES_PER_HOUR = 60L
 private const val MINUTES_PER_DAY = 1440L
 private const val SECONDS_PER_MINUTE = 60L
-private const val MILLIS_PER_SECOND = 1000L
 
 /**
- * The settings of DESIGN.md "What the user can change", plus the one flag
- * DESIGN.md "What a failed run shows" needs in order to speak only once.
+ * Every watcher, kept as one JSON array in one preference.
  *
- * A duration is a field per unit, added together — days plus hours plus minutes,
- * or minutes plus seconds — rather than one number and a chosen unit.
+ * There is still no database: DESIGN.md "The stack" says the settings are the
+ * whole of what the app stores, and a handful of watchers is settings however
+ * many of them there are.
  */
-data class Settings(
-    val url: String,
-    val credential: String,
-    val checkDays: Int,
-    val checkHours: Int,
-    val checkMinutes: Int,
-    val expiryMinutes: Int,
-    val expirySeconds: Int,
-    val maxLength: Int,
-    val lastRunFailed: Boolean,
-) {
-    val intervalMinutes: Long
-        get() = checkDays * MINUTES_PER_DAY + checkHours * MINUTES_PER_HOUR + checkMinutes
-
-    val expiryTotalSeconds: Long
-        get() = expiryMinutes * SECONDS_PER_MINUTE + expirySeconds
-
-    val expiryMillis: Long
-        get() = expiryTotalSeconds * MILLIS_PER_SECOND
-}
-
-object SettingsStore {
-
-    /**
-     * The starting values, written here and nowhere else (criterion settings-2).
-     * Supplying them when a stored preference is absent is the one place C1 allows
-     * a stand-in: nothing downstream of this file defaults anything.
-     */
-    const val STARTING_URL = ""
-    const val STARTING_CREDENTIAL = ""
-    const val STARTING_CHECK_DAYS = 0
-    const val STARTING_CHECK_HOURS = 4
-    const val STARTING_CHECK_MINUTES = 0
-    const val STARTING_EXPIRY_MINUTES = 10
-    const val STARTING_EXPIRY_SECONDS = 0
-    const val STARTING_MAX_LENGTH = 120
+object WatcherStore {
 
     /** WorkManager will not repeat work more often than this, and rounds up silently. */
     const val MINIMUM_INTERVAL_MINUTES = 15L
 
     /**
      * The shortest a notification may live. Long enough that the listener feeding
-     * the glasses has certainly been handed it before Android takes it back, and
-     * short enough to be gone from the phone before anyone looks.
+     * the glasses has certainly been handed it before Android takes it back.
      */
     const val MINIMUM_EXPIRY_SECONDS = 3L
 
-    private val KEY_URL = stringPreferencesKey("url")
-    private val KEY_CREDENTIAL = stringPreferencesKey("credential")
-    private val KEY_CHECK_DAYS = intPreferencesKey("check_days")
-    private val KEY_CHECK_HOURS = intPreferencesKey("check_hours")
-    private val KEY_CHECK_MINUTES = intPreferencesKey("check_minutes")
-    private val KEY_EXPIRY_MINUTES = intPreferencesKey("expiry_minutes")
-    private val KEY_EXPIRY_SECONDS = intPreferencesKey("expiry_seconds")
-    private val KEY_MAX_LENGTH = intPreferencesKey("max_length")
-    private val KEY_LAST_RUN_FAILED = booleanPreferencesKey("last_run_failed")
+    private val KEY_WATCHERS = stringPreferencesKey("watchers")
 
-    suspend fun read(context: Context): Settings {
-        val stored = context.store.data.first()
-        return Settings(
-            url = stored[KEY_URL] ?: STARTING_URL,
-            credential = stored[KEY_CREDENTIAL] ?: STARTING_CREDENTIAL,
-            checkDays = stored[KEY_CHECK_DAYS] ?: STARTING_CHECK_DAYS,
-            checkHours = stored[KEY_CHECK_HOURS] ?: STARTING_CHECK_HOURS,
-            checkMinutes = stored[KEY_CHECK_MINUTES] ?: STARTING_CHECK_MINUTES,
-            expiryMinutes = stored[KEY_EXPIRY_MINUTES] ?: STARTING_EXPIRY_MINUTES,
-            expirySeconds = stored[KEY_EXPIRY_SECONDS] ?: STARTING_EXPIRY_SECONDS,
-            maxLength = stored[KEY_MAX_LENGTH] ?: STARTING_MAX_LENGTH,
-            lastRunFailed = stored[KEY_LAST_RUN_FAILED] ?: false,
-        )
+    suspend fun all(context: Context): List<Watcher> {
+        val raw = context.store.data.first()[KEY_WATCHERS] ?: return emptyList()
+        return decode(raw)
     }
 
-    suspend fun save(
-        context: Context,
-        url: String,
-        credential: String,
-        checkDays: Int,
-        checkHours: Int,
-        checkMinutes: Int,
-        expiryMinutes: Int,
-        expirySeconds: Int,
-        maxLength: Int,
-    ) {
-        context.store.edit { stored ->
-            stored[KEY_URL] = url
-            stored[KEY_CREDENTIAL] = credential
-            stored[KEY_CHECK_DAYS] = checkDays
-            stored[KEY_CHECK_HOURS] = checkHours
-            stored[KEY_CHECK_MINUTES] = checkMinutes
-            stored[KEY_EXPIRY_MINUTES] = expiryMinutes
-            stored[KEY_EXPIRY_SECONDS] = expirySeconds
-            stored[KEY_MAX_LENGTH] = maxLength
+    suspend fun byId(context: Context, id: Int): Watcher? = all(context).firstOrNull { it.id == id }
+
+    /** Adds when the id is unknown, replaces when it is not. */
+    suspend fun put(context: Context, watcher: Watcher) {
+        val kept = all(context).filterNot { it.id == watcher.id }
+        write(context, kept + watcher)
+    }
+
+    suspend fun delete(context: Context, id: Int) {
+        write(context, all(context).filterNot { it.id == id })
+    }
+
+    suspend fun setLastRunFailed(context: Context, id: Int, failed: Boolean) {
+        val watcher = byId(context, id) ?: return
+        put(context, watcher.copy(lastRunFailed = failed))
+    }
+
+    /** One higher than the highest ever used, so a deleted id is never reissued. */
+    suspend fun nextId(context: Context): Int = (all(context).maxOfOrNull { it.id } ?: 0) + 1
+
+    private suspend fun write(context: Context, watchers: List<Watcher>) {
+        val array = JSONArray()
+        watchers.sortedBy { it.id }.forEach { array.put(it.toJson()) }
+        context.store.edit { stored -> stored[KEY_WATCHERS] = array.toString() }
+    }
+
+    private fun decode(raw: String): List<Watcher> {
+        val array = try {
+            JSONArray(raw)
+        } catch (e: JSONException) {
+            // Stored input parsed at its entry point. Unreadable storage is empty
+            // storage; it is never half-read into partly-configured watchers.
+            return emptyList()
         }
-    }
-
-    suspend fun setLastRunFailed(context: Context, failed: Boolean) {
-        context.store.edit { stored -> stored[KEY_LAST_RUN_FAILED] = failed }
+        val watchers = mutableListOf<Watcher>()
+        for (index in 0 until array.length()) {
+            try {
+                watchers.add(Watcher.fromJson(array.getJSONObject(index)))
+            } catch (e: JSONException) {
+                continue
+            }
+        }
+        return watchers
     }
 }
 
@@ -151,6 +114,9 @@ fun partOrNull(raw: String): Int? {
     return if (value == null || value < 0) null else value
 }
 
+fun nameProblem(raw: String): String? =
+    if (raw.trim().isEmpty()) "NAME: GIVE IT ONE, SO THE LIST MEANS SOMETHING." else null
+
 /**
  * Criterion settings-8. WorkManager silently rounds a shorter period up to its
  * own floor, so a refusal here is the only way the user learns that "every 5
@@ -165,8 +131,8 @@ fun intervalProblem(days: String, hours: String, minutes: String): String? {
         return "CHECK EVERY: WHOLE NUMBERS, 0 OR MORE."
     }
     val total = d * MINUTES_PER_DAY + h * MINUTES_PER_HOUR + m
-    if (total < SettingsStore.MINIMUM_INTERVAL_MINUTES) {
-        return "CHECK EVERY: AT LEAST " + SettingsStore.MINIMUM_INTERVAL_MINUTES +
+    if (total < WatcherStore.MINIMUM_INTERVAL_MINUTES) {
+        return "CHECK EVERY: AT LEAST " + WatcherStore.MINIMUM_INTERVAL_MINUTES +
             " MINUTES IN TOTAL. ANDROID WILL NOT REPEAT WORK FASTER."
     }
     return null
@@ -175,15 +141,14 @@ fun intervalProblem(days: String, hours: String, minutes: String): String? {
 /**
  * Criterion settings-9. Three seconds is a floor rather than a preference: below
  * it there is no guarantee the notification is still there when the listener that
- * feeds the glasses goes looking, so a shorter one risks vanishing from both
- * places rather than just the phone.
+ * feeds the glasses goes looking.
  */
 fun expiryProblem(minutes: String, seconds: String): String? {
     val m = partOrNull(minutes)
     val s = partOrNull(seconds)
     if (m == null || s == null) return "EXPIRES AFTER: WHOLE NUMBERS, 0 OR MORE."
-    if (m * SECONDS_PER_MINUTE + s < SettingsStore.MINIMUM_EXPIRY_SECONDS) {
-        return "EXPIRES AFTER: AT LEAST " + SettingsStore.MINIMUM_EXPIRY_SECONDS +
+    if (m * SECONDS_PER_MINUTE + s < WatcherStore.MINIMUM_EXPIRY_SECONDS) {
+        return "EXPIRES AFTER: AT LEAST " + WatcherStore.MINIMUM_EXPIRY_SECONDS +
             " SECONDS IN TOTAL, SO THE GLASSES RECEIVE IT."
     }
     return null

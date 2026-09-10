@@ -3,14 +3,15 @@
 *The present view. [`BACKLOG.md`](BACKLOG.md) is what is not done; this is what is. Overwritten,
 never appended — a dated snapshot of one day belongs in a report.*
 
-Stage: **it works, all the way to the glasses** — the backend's words were read on the G2 and the
-notification cleared itself afterwards. What is not yet proven is the app waking itself · last full
-sweep 2026-09-10
+Stage: **it works, all the way to the glasses**, and now carries many named watchers. What is not yet
+proven is the app waking itself, and that two watchers coexist on a real phone · last full sweep
+2026-09-10
 
 | Component | Covers | State | Verified how, when |
 | --- | --- | --- | --- |
 | Android app package | `app/`, `app/build/outputs/apk/debug/app-debug.apk` | **live** | installed on the owner's phone and opened; `aapt2 dump badging` reports `dev.liamchu.glance`, targetSdk 37, 2026-09-10 |
-| Settings screen | `app/src/main/java/dev/liamchu/glance/MainActivity.kt`, `Theme.kt`, `Settings.kt` | **live** | used by the owner to configure a real backend and save, 2026-09-10. Its validation is covered by `UrlValidationTest` and `SettingsTest` |
+| Settings screens | `MainActivity.kt`, `WatcherEdit.kt`, `Components.kt`, `Theme.kt` | **built, never run** | the single-settings screen was used and worked; the watcher list and editor that replaced it compile and have not been opened, 2026-09-10 |
+| Watchers, many and named | `Watcher.kt`, `Settings.kt` | **built, never run** | `SettingsTest` covers the JSON round trip, the refusal of a malformed stored watcher, and every entry rule. Two watchers have never run side by side on a device, 2026-09-10 |
 | Backend client | `app/src/main/java/dev/liamchu/glance/Backend.kt` | **live** | the backend's own log shows the call arriving from the phone — `User-Agent: Glance/0.1`, carrying `max_length` 120, `title_max_length` 32, `expires_after_seconds` 63, `interval_minutes` 15 — and answered 200. Also driven across every outcome by `BackendContractTest`, 2026-09-10 |
 | Manual check | `app/src/main/java/dev/liamchu/glance/Scheduler.kt` `checkNow` | **live** | pressed on the phone, producing a notification carrying the backend's content, 2026-09-10 |
 | Notification | `app/src/main/java/dev/liamchu/glance/Notifier.kt` | **live** | the owner saw the title and text displayed, and confirmed it was character-for-character what the backend returned — nothing truncated, reworded, or substituted, 2026-09-10 |

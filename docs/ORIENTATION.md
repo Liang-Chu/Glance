@@ -17,12 +17,15 @@ Inside `app/src/main/java/dev/liamchu/glance/`, one file per job:
 
 | File | Responsible for |
 | --- | --- |
-| `Settings.kt` | the five settings and the failure flag, their starting values, and whether a URL is usable |
+| `Watcher.kt` | one watcher: its settings, its derived durations, and its JSON form |
+| `Settings.kt` | the store of all watchers, and every rule about what may be entered |
 | `Backend.kt` | the one call to the user's backend, and turning its answer into an outcome |
 | `Notifier.kt` | posting, and the lifetime that makes a notification clear itself |
 | `GlanceWorker.kt` | one run: read settings, call once, post or do not post |
 | `Scheduler.kt` | registering the repeating work with WorkManager |
-| `MainActivity.kt` | the settings screen |
+| `MainActivity.kt` | the list of watchers, and which one is open |
+| `WatcherEdit.kt` | one watcher's settings screen |
+| `Components.kt` | the shared field, duration and rule composables, and how a watcher is labelled |
 | `Theme.kt` | the monochrome palette, the monospaced type, and the square corners |
 
 ## Dependencies

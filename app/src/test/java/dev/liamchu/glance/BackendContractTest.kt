@@ -32,7 +32,7 @@ class BackendContractTest {
     @Test
     fun `posts to the configured url`() {
         serve(200, """{"title":"T","text":"ok"}""")
-        runBlocking { Backend.fetch(settings(maxLength = 120)) }
+        runBlocking { Backend.fetch(watcher(maxLength = 120)) }
 
         assertEquals("POST", seenMethod)
     }
@@ -40,13 +40,14 @@ class BackendContractTest {
     @Test
     fun `tells the backend every limit it has to work within`() {
         serve(200, """{"title":"T","text":"ok"}""")
-        runBlocking { Backend.fetch(settings(maxLength = 100)) }
+        runBlocking { Backend.fetch(watcher(maxLength = 100)) }
 
         val sent = org.json.JSONObject(seenBody)
         assertEquals(100, sent.getInt("max_length"))
         assertEquals(Backend.TITLE_MAX_CHARS, sent.getInt("title_max_length"))
         assertEquals(30, sent.getInt("expires_after_seconds"))
         assertEquals(240, sent.getInt("interval_minutes"))
+        assertEquals("Test watcher", sent.getString("watcher"))
         assertTrue("client should name the app: " + sent.getString("client"),
             sent.getString("client").startsWith("Glance/"))
     }
@@ -55,7 +56,7 @@ class BackendContractTest {
     fun `the limits it sends are the ones it then enforces`() {
         // A backend that obeys max_length to the character must not be refused.
         serve(200, """{"title":"T","text":"""" + "x".repeat(100) + """"}""")
-        val outcome = runBlocking { Backend.fetch(settings(maxLength = 100)) }
+        val outcome = runBlocking { Backend.fetch(watcher(maxLength = 100)) }
 
         val sent = org.json.JSONObject(seenBody)
         assertEquals(100, sent.getInt("max_length"))
@@ -66,7 +67,7 @@ class BackendContractTest {
     @Test
     fun `sends the credential as a bearer token`() {
         serve(200, """{"title":"T","text":"ok"}""")
-        runBlocking { Backend.fetch(settings(credential = "s3cret")) }
+        runBlocking { Backend.fetch(watcher(credential = "s3cret")) }
 
         assertEquals("Bearer s3cret", seenAuth)
     }
@@ -74,7 +75,7 @@ class BackendContractTest {
     @Test
     fun `omits the authorization header entirely when no credential is set`() {
         serve(200, """{"title":"T","text":"ok"}""")
-        runBlocking { Backend.fetch(settings(credential = "")) }
+        runBlocking { Backend.fetch(watcher(credential = "")) }
 
         assertNull("an empty credential must not become an empty header", seenAuth)
     }
@@ -84,7 +85,7 @@ class BackendContractTest {
     @Test
     fun `two hundred with title and text is content`() {
         serve(200, """{"title":"Kotlin","text":"buildList beats mutableListOf here."}""")
-        val outcome = runBlocking { Backend.fetch(settings()) }
+        val outcome = runBlocking { Backend.fetch(watcher()) }
 
         assertEquals(
             Outcome.Content("Kotlin", "buildList beats mutableListOf here."),
@@ -95,13 +96,13 @@ class BackendContractTest {
     @Test
     fun `unknown members are ignored rather than rejected`() {
         serve(200, """{"title":"T","text":"ok","source":"https://example.com","score":3}""")
-        assertEquals(Outcome.Content("T", "ok"), runBlocking { Backend.fetch(settings()) })
+        assertEquals(Outcome.Content("T", "ok"), runBlocking { Backend.fetch(watcher()) })
     }
 
     @Test
     fun `two hundred and four is not a failure`() {
         serve(204, null)
-        assertEquals(Outcome.NothingToSay, runBlocking { Backend.fetch(settings()) })
+        assertEquals(Outcome.NothingToSay, runBlocking { Backend.fetch(watcher()) })
     }
 
     // --- what Glance refuses ---------------------------------------------------
@@ -110,7 +111,7 @@ class BackendContractTest {
     fun `text longer than max length is refused rather than trimmed`() {
         val tooLong = "x".repeat(121)
         serve(200, """{"title":"T","text":"$tooLong"}""")
-        val outcome = runBlocking { Backend.fetch(settings(maxLength = 120)) }
+        val outcome = runBlocking { Backend.fetch(watcher(maxLength = 120)) }
 
         assertFailedBecause(outcome, "over 120 characters")
     }
@@ -119,38 +120,38 @@ class BackendContractTest {
     fun `text exactly at max length is accepted`() {
         val exact = "x".repeat(120)
         serve(200, """{"title":"T","text":"$exact"}""")
-        assertEquals(Outcome.Content("T", exact), runBlocking { Backend.fetch(settings(maxLength = 120)) })
+        assertEquals(Outcome.Content("T", exact), runBlocking { Backend.fetch(watcher(maxLength = 120)) })
     }
 
     @Test
     fun `title longer than its limit is refused`() {
         val tooLong = "t".repeat(Backend.TITLE_MAX_CHARS + 1)
         serve(200, """{"title":"$tooLong","text":"ok"}""")
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "title over")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "title over")
     }
 
     @Test
     fun `a missing text is a failure and not an empty notification`() {
         serve(200, """{"title":"T"}""")
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "no title or no text")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "no title or no text")
     }
 
     @Test
     fun `an empty text is a failure`() {
         serve(200, """{"title":"T","text":""}""")
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "empty")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "empty")
     }
 
     @Test
     fun `a body that is not json is a failure`() {
         serve(200, "not json at all")
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "not JSON")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "not JSON")
     }
 
     @Test
     fun `a server error is a failure carrying the status`() {
         serve(500, "boom")
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "500")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "500")
     }
 
     @Test
@@ -163,13 +164,15 @@ class BackendContractTest {
         }
         server!!.start()
 
-        assertFailedBecause(runBlocking { Backend.fetch(settings()) }, "302")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "302")
     }
 
     @Test
     fun `an unreachable backend is a failure`() {
         // Port 1 on loopback: nothing listens, and nothing is expected to.
-        val settings = Settings(
+        val built = Watcher(
+            id = 1,
+            name = "Unreachable",
             url = "http://127.0.0.1:1/glance",
             credential = "",
             checkDays = 0,
@@ -180,7 +183,7 @@ class BackendContractTest {
             maxLength = 120,
             lastRunFailed = false,
         )
-        assertFailedBecause(runBlocking { Backend.fetch(settings) }, "unreachable")
+        assertFailedBecause(runBlocking { Backend.fetch(built) }, "unreachable")
     }
 
     // --- harness -------------------------------------------------------------
@@ -211,10 +214,13 @@ class BackendContractTest {
         server!!.start()
     }
 
-    private fun settings(
+    private fun watcher(
         maxLength: Int = 120,
         credential: String = "",
-    ) = Settings(
+        name: String = "Test watcher",
+    ) = Watcher(
+        id = 1,
+        name = name,
         url = "http://127.0.0.1:" + server!!.address.port + "/glance",
         credential = credential,
         checkDays = 0,

@@ -16,23 +16,37 @@ import androidx.core.app.NotificationManagerCompat
 object Notifier {
 
     private const val CHANNEL_ID = "glance"
-    private const val ID_CONTENT = 1
-    private const val ID_FAILURE = 2
+
+    /**
+     * A slot per watcher, so two watchers never overwrite each other's
+     * notification — and a watcher's own next notification does replace its last,
+     * which is what keeps the shade from filling up.
+     */
+    private const val CONTENT_ID_BASE = 1_000
+    private const val FAILURE_ID_BASE = 500_000
 
     fun canPost(context: Context): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-    fun postContent(context: Context, title: String, text: String, expiryMillis: Long) {
+    /**
+     * The header line on the glasses is the app label — one per install, and not
+     * ours to vary per notification. What is ours is the title beneath it, which
+     * carries the backend's words, and the sub-text, which names the watcher.
+     * Whether a listener forwards sub-text is up to the listener; it costs a line
+     * to try and nothing if it is ignored.
+     */
+    fun postContent(context: Context, watcher: Watcher, title: String, text: String) {
         val notification = builder(context)
+            .setSubText(watcher.name)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             // Never zero: Android reads a timeout of 0 as "no timeout at all".
             // expiryProblem refuses anything under the floor, so this is always positive.
-            .setTimeoutAfter(expiryMillis)
+            .setTimeoutAfter(watcher.expiryMillis)
             .setAutoCancel(true)
             .build()
-        post(context, ID_CONTENT, notification)
+        post(context, CONTENT_ID_BASE + watcher.id, notification)
     }
 
     /**
@@ -40,14 +54,21 @@ object Notifier {
      * a status code, a length, an unreachable host. None of it is response body.
      * The failure notice does not expire: it is the only sign the app is broken.
      */
-    fun postFailure(context: Context, reason: String) {
+    fun postFailure(context: Context, watcher: Watcher, reason: String) {
         val notification = builder(context)
-            .setContentTitle(context.getString(R.string.failure_title))
+            .setContentTitle(context.getString(R.string.failure_title, watcher.name))
             .setContentText(reason)
             .setStyle(NotificationCompat.BigTextStyle().bigText(reason))
             .setAutoCancel(true)
             .build()
-        post(context, ID_FAILURE, notification)
+        post(context, FAILURE_ID_BASE + watcher.id, notification)
+    }
+
+    /** A deleted watcher must not leave its notifications behind. */
+    fun clear(context: Context, watcherId: Int) {
+        val manager = NotificationManagerCompat.from(context)
+        manager.cancel(CONTENT_ID_BASE + watcherId)
+        manager.cancel(FAILURE_ID_BASE + watcherId)
     }
 
     private fun builder(context: Context): NotificationCompat.Builder {

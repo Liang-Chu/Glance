@@ -34,6 +34,7 @@ Authorization: Bearer <your credential>     # the header is absent when the cred
 User-Agent: Glance/<version>
 
 {
+  "watcher": "Kotlin tips",
   "max_length": 120,
   "title_max_length": 32,
   "expires_after_seconds": 30,
@@ -42,7 +43,9 @@ User-Agent: Glance/<version>
 }
 ```
 
-Every limit Glance will enforce is in that request, so you never have to hardcode one of its numbers.
+`watcher` is the name you gave it, so **one backend can serve several watchers** and answer
+differently for each. Every limit Glance will enforce is in that request too, so you never have to
+hardcode one of its numbers.
 `max_length` caps `text`, `title_max_length` caps `title`; exceed either and the run fails.
 
 and expects exactly one of three answers:

@@ -20,6 +20,9 @@
 | Does a plain `http` backend work, and what does it cost? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** |
 | What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
 | What is the app written in, and what runs the interval? | **[`DESIGN.md`](DESIGN.md) "The stack"** |
+| Can there be more than one watcher, and what do they share? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** (owner, 2026-09-10: "allow the user setup multiple notification watcher") |
+| What identifies a watcher — its name, or something else? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** |
+| Does the backend learn which watcher is asking? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** |
 | What may the app look like, and may it use colour? | **[`DESIGN.md`](DESIGN.md) "How it looks"** (owner, 2026-09-10: "black - white - gray pixil style") |
 
 Grep the whole file before concluding a question is undecided.
@@ -111,23 +114,27 @@ Retired: tip-source-1 … tip-source-11 (the app stopped generating content, 202
 Recorded from the owner, 2026-09-10, verbatim: *"the backend credential and url, expiration and check
 frequency and notification max length should be editable and thats it"*.
 
-Five settings, and **that list is closed** — anything a later version wants to vary is a decision
-recorded here, not a field quietly added to a screen.
+~~These settings belonged to the app as a whole, and there was exactly one of each.~~ → **they belong
+to a watcher, and there may be many** (owner, 2026-09-10: *"allow the user setup multiple
+notification watcher"*). What follows describes one watcher; how many there are is
+[`DESIGN.md`](DESIGN.md) "Many watchers, each named".
+
+Six settings per watcher, and **that list is closed** — anything a later version wants to vary is a
+decision recorded here, not a field quietly added to a screen.
 
 | Setting | Unit | Starting value |
 | --- | --- | --- |
+| Name | free text, required | empty — a watcher without one cannot be saved |
 | Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
 | Credential | opaque string, may be left empty | empty |
 | Check every | days + hours + minutes, added together; at least 15 minutes in total | 4 hours |
 | Expires after | minutes + seconds, added together; at least 3 seconds in total | 10 minutes |
 | Maximum length | characters | 120 |
 
-~~An expiry of zero was legal and meant "gone from the phone at once".~~ → **three seconds is the
-floor** (owner, 2026-09-10: *"lets floor the duration by 3 seconds"*). Zero was never safe: the
+**Three seconds is the floor on the expiry**, and it is a floor rather than a preference: the
 listener that feeds the glasses is handed a notification when it is posted, and a lifetime measured
 in milliseconds gambles on winning that race. Three seconds is short enough to be gone before anyone
-looks at the phone and long enough that the glasses have certainly been given it, which turns an
-unverifiable claim into an ordinary one.
+looks at the phone and long enough that the glasses have certainly been given it.
 
 A duration is a box per unit, added together, and an empty box counts as zero — so most durations are
 one number typed in one box.
@@ -269,3 +276,50 @@ a defect rather than a matter of taste.
 - `look-3` No corner in the app is rounded.
 - `look-4` A warning is distinguished by inversion, never by colour.
 - `look-5` The window is black before Compose draws, so launching never flashes white.
+
+## 7 · Many watchers, each named
+
+> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "What the user can change".
+> **Decides**: that there may be more than one watcher, and what they share.
+
+Recorded from the owner, 2026-09-10, verbatim: *"allow the user setup multiple notification watcher.
+they can name it. each one can have different backend source and parameter"*.
+
+**A watcher is the unit.** It has a name and its own backend, credential, interval, expiry and length
+limit. **Two watchers share nothing but the code**: not a schedule, not a notification, not a failure.
+That is the whole content of this decision, and each half of it is a thing that would otherwise go
+quietly wrong:
+
+- **Its own notification slot.** A single slot would mean the second watcher to fire silently
+  replaced the first, and the first's content would be lost with no error anywhere.
+- **Its own failure state.** One unreachable backend must not silence the others — the rule in
+  [`DESIGN.md`](DESIGN.md) "What a failed run shows" is per watcher, so a failure notice names which
+  one, and a watcher that is working keeps working.
+- **Its own schedule.** Deleting a watcher cancels that watcher's work and clears its notifications;
+  nothing else notices.
+
+**Identity is an id, not a name.** Names are for the person and may be edited or repeated; the id is
+assigned once, never reissued after a deletion, and is what the schedule, the notification slot and
+the stored record are keyed by. Keying any of those on the name would move a watcher's identity every
+time it was renamed.
+
+**The name is sent to the backend**, so one backend can serve several watchers and answer differently
+for each — which is what makes several watchers pointing at one URL useful rather than redundant.
+
+**The app still has no database.** The watchers are one JSON array in one preference: a handful of
+watchers is settings however many of them there are, and
+[`DESIGN.md`](DESIGN.md) "The stack" is unchanged.
+
+### Acceptance
+
+- `watchers-1` Two watchers can hold notifications at the same time; neither replaces the other's.
+- `watchers-2` A watcher's next notification replaces its own previous one, so the shade does not
+  fill up.
+- `watchers-3` A failing watcher posts one failure notice naming itself, and the other watchers go on
+  posting.
+- `watchers-4` Deleting a watcher cancels its scheduled work and removes its notifications; every
+  other watcher is untouched.
+- `watchers-5` A deleted watcher's id is never given to a later one.
+- `watchers-6` The watcher's name reaches the backend in the request.
+- `watchers-7` Renaming a watcher changes no schedule and loses no state.
+- `watchers-8` The app declares no database; the watchers live in the settings store.
