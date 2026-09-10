@@ -18,17 +18,28 @@ object Notifier {
     private const val CHANNEL_ID = "blip"
     private const val ID_CONTENT = 1
     private const val ID_FAILURE = 2
-    private const val MILLIS_PER_MINUTE = 60_000L
+    /**
+     * A zero expiry means "gone from the phone at once", and it cannot be passed
+     * to the platform as zero: Android reads a timeout of 0 as "no timeout at
+     * all", which is the exact opposite of what was asked for. The smallest
+     * positive value asks it to cancel as soon as it is able.
+     *
+     * Whether a notification that lives this briefly is still forwarded to the
+     * glasses is UNVERIFIED — the listener that forwards it is told when the
+     * notification is posted, not when it is cancelled, so it should be, but only
+     * the hardware can settle it. Tracked in BACKLOG.md.
+     */
+    private const val AT_ONCE_MS = 1L
 
     fun canPost(context: Context): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-    fun postContent(context: Context, title: String, text: String, expiryMinutes: Int) {
+    fun postContent(context: Context, title: String, text: String, expiryMillis: Long) {
         val notification = builder(context)
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setTimeoutAfter(expiryMinutes * MILLIS_PER_MINUTE)
+            .setTimeoutAfter(if (expiryMillis <= 0L) AT_ONCE_MS else expiryMillis)
             .setAutoCancel(true)
             .build()
         post(context, ID_CONTENT, notification)

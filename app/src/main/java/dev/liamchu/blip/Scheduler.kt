@@ -12,15 +12,19 @@ import java.util.concurrent.TimeUnit
  * DESIGN.md "The stack": WorkManager owns the interval, because a repeating job
  * survives Doze only when the operating system is the thing scheduling it. It
  * also re-registers itself after a reboot, which is criterion purpose-5.
+ *
+ * The interval arrives already in minutes and already checked against
+ * WorkManager's floor — see intervalProblem in Settings.kt. Nothing here clamps
+ * it, because a clamp is a silent lie about how often the user will be told.
  */
 object Scheduler {
 
     private const val WORK_NAME = "blip-poll"
 
-    fun schedule(context: Context, frequencyHours: Int) {
+    fun schedule(context: Context, intervalMinutes: Long) {
         val request = PeriodicWorkRequestBuilder<BlipWorker>(
-            frequencyHours.toLong(),
-            TimeUnit.HOURS,
+            intervalMinutes,
+            TimeUnit.MINUTES,
         ).setConstraints(
             Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)

@@ -9,7 +9,7 @@ Stage: **built; the backend client is tested, the app has never run on a device*
 | Component | Covers | State | Verified how, when |
 | --- | --- | --- | --- |
 | Android app package | `app/`, `app/build/outputs/apk/debug/app-debug.apk` | **built, unwired** | `./gradlew.bat assembleDebug` succeeded and `aapt2 dump badging` reports `dev.liamchu.blip`, targetSdk 37, 2026-09-10 |
-| Settings screen | `app/src/main/java/dev/liamchu/blip/MainActivity.kt`, `Theme.kt` | **built, never run** | compiles; never opened on a device, so the monochrome styling has been read but not seen. Its URL check is covered by `UrlValidationTest`, 2026-09-10 |
+| Settings screen | `app/src/main/java/dev/liamchu/blip/MainActivity.kt`, `Theme.kt`, `Settings.kt` | **built, never run** | compiles; never opened on a device, so the monochrome styling has been read but not seen. Its validation is covered by `UrlValidationTest` and `SettingsTest` — 25 tests pass in all, 2026-09-10 |
 | Backend client | `app/src/main/java/dev/liamchu/blip/Backend.kt` | **live** | `./gradlew.bat testDebugUnitTest` — 15 cases in `BackendContractTest` drive it against a real loopback HTTP server: 200, 204, 500, redirect, unreachable, non-JSON, missing member, empty member, over-length text, over-length title, and the exact-limit boundary, 2026-09-10 |
 | Scheduled run | `app/src/main/java/dev/liamchu/blip/BlipWorker.kt`, `Scheduler.kt` | **built, never run** | compiles; WorkManager pulled `RECEIVE_BOOT_COMPLETED` into the merged manifest, which is what would carry it across a reboot, 2026-09-10 |
 | Notification and its expiry | `app/src/main/java/dev/liamchu/blip/Notifier.kt` | **built, never run** | compiles; no notification has been posted, 2026-09-10 |

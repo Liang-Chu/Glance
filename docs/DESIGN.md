@@ -118,9 +118,29 @@ recorded here, not a field quietly added to a screen.
 | --- | --- | --- |
 | Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
 | Credential | opaque string, may be left empty | empty |
-| Check frequency | hours | 4 |
-| Expiration | minutes | 10 |
+| Check every | a number, plus minutes, hours or days | 4 hours |
+| Expires after | a number, plus seconds or minutes; **0 is legal** | 10 minutes |
 | Maximum length | characters | 120 |
+
+~~The check frequency was whole hours, and the expiry whole minutes with a minimum of one.~~ →
+**each is a number plus a unit, and the expiry may be zero** (owner, 2026-09-10: *"i want to the
+interval to be minutes, with option of hour and days"*, and *"for the expiration. i want it can start
+from 0 and unit is second/minutes"*).
+
+**The interval has a floor, and it is refused rather than clamped.** WorkManager will not repeat work
+more often than every fifteen minutes; asked for less it silently rounds up. The settings screen
+therefore refuses anything below fifteen minutes outright, because a user who typed "every 5 minutes"
+and was quietly given twenty would have no way to learn that. Rounding it here would also be the
+derivation [`CONSTRAINTS.md`](CONSTRAINTS.md) "C5 — Independent axes stay independent" forbids: a
+check that replaces the value it checks.
+
+**An expiry of zero means gone from the phone at once**, recorded from the owner, 2026-09-10:
+*"when i set to 0 which means it only need to be visible on the glasses and will instantly gone on
+the phone"*. The glasses are fed by a notification listener, which is told when a notification is
+**posted**; clearing it a moment later is meant to leave the glasses' copy alone. Zero cannot be
+handed to the platform as zero — Android reads a timeout of `0` as *no timeout at all*, the exact
+opposite — so it becomes the smallest positive lifetime instead. **Whether the glasses still receive
+one that brief is unverified and needs the hardware**, tracked in [`BACKLOG.md`](BACKLOG.md).
 
 **Plain `http` has to work.** The backend belongs to the user and is commonly a machine on their
 own network with no certificate. Android blocks cleartext from targetSdk 28 onwards, so the app opts
@@ -152,6 +172,12 @@ glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
   notification.
 - `settings-7` A backend reached over plain `http` works on a current Android release. Nothing the
   settings screen accepts fails later for being cleartext.
+- `settings-8` An interval below fifteen minutes is refused when it is entered, in every unit, and
+  no code path rounds one up.
+- `settings-9` An expiry of zero saves and schedules. It is never treated as "no expiry", and the
+  notification does not outlive the run.
+- `settings-10` Changing only the unit changes the schedule: 60 minutes and 1 hour produce the same
+  interval, and 1 minute and 1 day do not.
 
 ## 4 · What a failed run shows
 
@@ -198,7 +224,8 @@ carries it from version 9, and adding the old one is an error.
 operating system is the thing scheduling it, and WorkManager is the API that exists for that. A
 hand-rolled alarm loop, a long-lived foreground service, or a shell cron all fight power management
 and lose, which is why the automation tools that do this today are unreliable at it. Its floor is
-fifteen minutes; the frequency setting is counted in hours, so the floor is never in reach.
+fifteen minutes, and the interval can be set in minutes, so the floor is now reachable — the settings
+screen refuses anything under it rather than letting WorkManager round it up without saying so.
 
 There is **no database**. The app keeps nothing between runs but its settings, so DataStore is the
 whole of its storage.

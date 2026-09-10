@@ -33,7 +33,7 @@ class BlipWorker(
                     context,
                     outcome.title,
                     outcome.text,
-                    settings.expiryMinutes,
+                    settings.expiryMillis,
                 )
                 if (settings.lastRunFailed) SettingsStore.setLastRunFailed(context, false)
             }
