@@ -20,6 +20,7 @@
 | Does a plain `http` backend work, and what does it cost? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** |
 | What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
 | What is the app written in, and what runs the interval? | **[`DESIGN.md`](DESIGN.md) "The stack"** |
+| What may the app look like, and may it use colour? | **[`DESIGN.md`](DESIGN.md) "How it looks"** (owner, 2026-09-10: "black - white - gray pixil style") |
 
 Grep the whole file before concluding a question is undecided.
 
@@ -208,3 +209,29 @@ whole of its storage.
   service exists to do it instead.
 - `stack-2` The app declares no database and no persistent store other than the settings.
 - `stack-3` A release build installs and runs on a device at minimum SDK 26.
+
+## 6 · How it looks
+
+> **Prerequisites**: none.
+> **Decides**: the visual language of the settings screen and of the icon.
+
+Recorded from the owner, 2026-09-10, verbatim: *"update the UI a bit. make it even app style of
+black - white - gray pixil style"*.
+
+**Black, white and grey, and no other colour anywhere** — including for errors and warnings, which
+are told apart by **inverting to black-on-white** rather than by hue. Every text style is monospaced,
+every corner is square, and the icon is whole blocks rather than curves.
+
+The reason is the destination. What this app produces is read on a monochrome head-up display, so a
+settings screen in the same register is honest about the medium; a colourful one would promise a
+richness the glasses cannot render. It also makes the constraint checkable: any hue in the source is
+a defect rather than a matter of taste.
+
+### Acceptance
+
+- `look-1` Every colour the source declares is black, white, or a grey with equal red, green and blue
+  channels. A hue anywhere is a defect.
+- `look-2` Every text style the app defines is monospaced.
+- `look-3` No corner in the app is rounded.
+- `look-4` A warning is distinguished by inversion, never by colour.
+- `look-5` The window is black before Compose draws, so launching never flashes white.

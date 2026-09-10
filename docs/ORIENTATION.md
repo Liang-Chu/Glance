@@ -23,6 +23,7 @@ Inside `app/src/main/java/dev/liamchu/blip/`, one file per job:
 | `BlipWorker.kt` | one run: read settings, call once, post or do not post |
 | `Scheduler.kt` | registering the repeating work with WorkManager |
 | `MainActivity.kt` | the settings screen |
+| `Theme.kt` | the monochrome palette, the monospaced type, and the square corners |
 
 ## Dependencies
 
