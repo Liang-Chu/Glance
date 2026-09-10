@@ -29,7 +29,7 @@ this file, and should record the versions. Confidence is per claim, not per docu
 - **A 6-character title and an 86-character body were readable.** `confirmed` — the text shown was
   character-for-character what the backend returned, with nothing truncated or reworded.
 - **The most text the glasses will display is unknown.** `speculative` — 86 characters is a floor,
-  not a limit. The `120` starting value for maximum length and the `32` for `title_max_length` in
+  not a limit. The `80` starting value for maximum length and the `32` for `title_max_length` in
   [`CONTRACT.md`](../CONTRACT.md) were both picked without this measurement. Finding the real ceiling
   is tracked in [`BACKLOG.md`](../BACKLOG.md).
 

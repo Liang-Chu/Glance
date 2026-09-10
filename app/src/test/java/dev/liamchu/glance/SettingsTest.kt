@@ -114,6 +114,20 @@ class SettingsTest {
     }
 
     @Test
+    fun `a new watcher starts on the values DESIGN states`() {
+        val fresh = Watcher.blank(1)
+        assertEquals("once a day", 1440L, fresh.intervalMinutes)
+        assertEquals("three seconds", 3L, fresh.expiryTotalSeconds)
+        assertEquals(80, fresh.maxLength)
+
+        // The starting values must themselves satisfy the rules the screen enforces,
+        // or a new watcher would be born refusing to save.
+        assertNull(intervalProblem("1", "0", "0"))
+        assertNull(expiryProblem("0", "3"))
+        assertNull(maxLengthProblem("80"))
+    }
+
+    @Test
     fun `a watcher survives a round trip through json`() {
         val before = watcher(checkDays = 1, checkHours = 2, checkMinutes = 3)
             .copy(lastRunFailed = true)

@@ -127,9 +127,9 @@ decision recorded here, not a field quietly added to a screen.
 | Name | free text, required | empty — a watcher without one cannot be saved |
 | Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
 | Credential | opaque string, may be left empty | empty |
-| Check every | days + hours + minutes, added together; at least 15 minutes in total | 4 hours |
-| Expires after | minutes + seconds, added together; at least 3 seconds in total | 10 minutes |
-| Maximum length | characters | 120 |
+| Check every | days + hours + minutes, added together; at least 15 minutes in total | 1 day |
+| Expires after | minutes + seconds, added together; at least 3 seconds in total | 3 seconds |
+| Maximum length | characters | 80 |
 
 **Three seconds is the floor on the expiry**, and it is a floor rather than a preference: the
 listener that feeds the glasses is handed a notification when it is posted, and a lifetime measured
@@ -166,9 +166,11 @@ setting, the app opts out of Android backup so it is not carried off to a cloud 
 writes it to a log. There is no separate secret store: on a device that is not rooted, app-private
 storage is the boundary, and pretending otherwise would be ceremony rather than protection.
 
-The starting values are what a fresh install holds before the user touches anything, and each is
-written in one place. The maximum-length starting value is a **guess pending measurement** — what the
-glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
+The starting values are what a new watcher holds before the user touches anything, and each is
+written in one place. They start where a watcher is least likely to annoy: **once a day**, gone from
+the phone in **three seconds**, and **80 characters** — comfortably inside the 86 that have actually
+been read on the glasses, so a default watcher cannot produce something too long to read. The real
+ceiling is still unmeasured and tracked in [`BACKLOG.md`](BACKLOG.md).
 
 ### Acceptance
 

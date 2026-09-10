@@ -54,12 +54,12 @@ data class Watcher(
          * The values a new watcher starts with, written here and nowhere else
          * (criterion settings-2).
          */
-        const val STARTING_CHECK_DAYS = 0
-        const val STARTING_CHECK_HOURS = 4
+        const val STARTING_CHECK_DAYS = 1
+        const val STARTING_CHECK_HOURS = 0
         const val STARTING_CHECK_MINUTES = 0
-        const val STARTING_EXPIRY_MINUTES = 10
-        const val STARTING_EXPIRY_SECONDS = 0
-        const val STARTING_MAX_LENGTH = 120
+        const val STARTING_EXPIRY_MINUTES = 0
+        const val STARTING_EXPIRY_SECONDS = 3
+        const val STARTING_MAX_LENGTH = 80
 
         fun blank(id: Int) = Watcher(
             id = id,

@@ -25,10 +25,10 @@ User-Agent: Glance/<version>
 
 {
   "watcher": "Kotlin tips",
-  "max_length": 120,
+  "max_length": 80,
   "title_max_length": 32,
-  "expires_after_seconds": 30,
-  "interval_minutes": 240,
+  "expires_after_seconds": 3,
+  "interval_minutes": 1440,
   "client": "Glance/0.1"
 }
 ```
@@ -108,7 +108,7 @@ Testable before the app exists:
 curl -sS -X POST "$URL" \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $CREDENTIAL" \
-  -d '{"max_length": 120, "title_max_length": 32}' -i
+  -d '{"max_length": 80, "title_max_length": 32}' -i
 ```
 
 **Breaking a clause is a decision**, recorded and coordinated before it ships — never an edit to this

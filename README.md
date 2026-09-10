@@ -35,10 +35,10 @@ User-Agent: Glance/<version>
 
 {
   "watcher": "Kotlin tips",
-  "max_length": 120,
+  "max_length": 80,
   "title_max_length": 32,
-  "expires_after_seconds": 30,
-  "interval_minutes": 240,
+  "expires_after_seconds": 3,
+  "interval_minutes": 1440,
   "client": "Glance/0.1"
 }
 ```
@@ -74,7 +74,7 @@ Try it before installing anything:
 
 ```bash
 curl -sS -X POST "$URL" -H 'Content-Type: application/json'   -H "Authorization: Bearer $CREDENTIAL" \
-  -d '{"max_length": 120, "title_max_length": 32}' -i
+  -d '{"max_length": 80, "title_max_length": 32}' -i
 ```
 
 **[`docs/CONTRACT.md`](docs/CONTRACT.md) is the specification and wins over this section**, which is
