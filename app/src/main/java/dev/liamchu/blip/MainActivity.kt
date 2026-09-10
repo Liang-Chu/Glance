@@ -7,13 +7,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,7 +36,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -48,7 +47,7 @@ import kotlinx.coroutines.launch
 /**
  * The settings of DESIGN.md "What the user can change" and nothing else
  * (criterion settings-1), in the monochrome of DESIGN.md "How it looks".
- * Once they are filled in there is no reason to come back here.
+ * Durations are one box per unit, added together.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,10 +69,11 @@ private fun SettingsScreen() {
 
     var url by remember { mutableStateOf("") }
     var credential by remember { mutableStateOf("") }
-    var interval by remember { mutableStateOf("") }
-    var intervalUnit by remember { mutableStateOf(SettingsStore.STARTING_INTERVAL_UNIT) }
-    var expiry by remember { mutableStateOf("") }
-    var expiryUnit by remember { mutableStateOf(SettingsStore.STARTING_EXPIRY_UNIT) }
+    var checkDays by remember { mutableStateOf("") }
+    var checkHours by remember { mutableStateOf("") }
+    var checkMinutes by remember { mutableStateOf("") }
+    var expiryMinutes by remember { mutableStateOf("") }
+    var expirySeconds by remember { mutableStateOf("") }
     var maxLength by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var notificationsAllowed by remember { mutableStateOf(true) }
@@ -86,12 +86,39 @@ private fun SettingsScreen() {
         val stored = SettingsStore.read(context)
         url = stored.url
         credential = stored.credential
-        interval = stored.intervalValue.toString()
-        intervalUnit = stored.intervalUnit
-        expiry = stored.expiryValue.toString()
-        expiryUnit = stored.expiryUnit
+        checkDays = stored.checkDays.toString()
+        checkHours = stored.checkHours.toString()
+        checkMinutes = stored.checkMinutes.toString()
+        expiryMinutes = stored.expiryMinutes.toString()
+        expirySeconds = stored.expirySeconds.toString()
         maxLength = stored.maxLength.toString()
         notificationsAllowed = Notifier.canPost(context)
+    }
+
+    // Saving is the same work from either button; only what follows it differs.
+    fun saveThen(action: (Settings) -> Unit, note: (Settings) -> String) {
+        val problem = firstProblem(url, checkDays, checkHours, checkMinutes,
+            expiryMinutes, expirySeconds, maxLength)
+        if (problem != null) {
+            message = problem
+            return
+        }
+        scope.launch {
+            SettingsStore.save(
+                context = context,
+                url = url.trim(),
+                credential = credential,
+                checkDays = partOrNull(checkDays)!!,
+                checkHours = partOrNull(checkHours)!!,
+                checkMinutes = partOrNull(checkMinutes)!!,
+                expiryMinutes = partOrNull(expiryMinutes)!!,
+                expirySeconds = partOrNull(expirySeconds)!!,
+                maxLength = maxLength.trim().toInt(),
+            )
+            val saved = SettingsStore.read(context)
+            action(saved)
+            message = note(saved)
+        }
     }
 
     Column(
@@ -112,12 +139,23 @@ private fun SettingsScreen() {
         Field("Backend URL", url, KeyboardType.Uri) { url = it }
         Field("Credential / optional", credential, KeyboardType.Password) { credential = it }
 
-        Field("Check every", interval, KeyboardType.Number) { interval = it }
-        UnitPicker(IntervalUnit.entries, intervalUnit, { it.label }) { intervalUnit = it }
+        Duration("Check every") {
+            NumberCell("DAYS", checkDays, Modifier.weight(1f)) { checkDays = it }
+            NumberCell("HOURS", checkHours, Modifier.weight(1f)) { checkHours = it }
+            NumberCell("MINS", checkMinutes, Modifier.weight(1f)) { checkMinutes = it }
+        }
+        Text(
+            "> AT LEAST 15 MINUTES IN TOTAL.",
+            style = MaterialTheme.typography.bodySmall,
+            color = BlipGrey,
+        )
 
-        Field("Expires after", expiry, KeyboardType.Number) { expiry = it }
-        UnitPicker(ExpiryUnit.entries, expiryUnit, { it.label }) { expiryUnit = it }
-        if (expiry.trim() == "0") {
+        Duration("Expires after") {
+            NumberCell("MINS", expiryMinutes, Modifier.weight(1f)) { expiryMinutes = it }
+            NumberCell("SECS", expirySeconds, Modifier.weight(1f)) { expirySeconds = it }
+            Box(Modifier.weight(1f))
+        }
+        if (partOrNull(expiryMinutes) == 0 && partOrNull(expirySeconds) == 0) {
             Text(
                 "> 0 = GONE FROM THE PHONE AT ONCE. THE GLASSES STILL GET IT.",
                 style = MaterialTheme.typography.bodySmall,
@@ -137,29 +175,29 @@ private fun SettingsScreen() {
                 contentColor = BlipBlack,
             ),
             onClick = {
-                val problem = firstProblem(url, interval, intervalUnit, expiry, maxLength)
-                if (problem != null) {
-                    message = problem
-                    return@Button
-                }
-                scope.launch {
-                    val value = interval.trim().toInt()
-                    SettingsStore.save(
-                        context = context,
-                        url = url.trim(),
-                        credential = credential,
-                        intervalValue = value,
-                        intervalUnit = intervalUnit,
-                        expiryValue = expiry.trim().toInt(),
-                        expiryUnit = expiryUnit,
-                        maxLength = maxLength.trim().toInt(),
-                    )
-                    Scheduler.schedule(context, value * intervalUnit.minutesEach)
-                    message = "SAVED. CHECKING EVERY " + value + " " + intervalUnit.label + "."
+                saveThen({ Scheduler.schedule(context, it.intervalMinutes) }) { saved ->
+                    "SAVED. CHECKING EVERY " + saved.intervalMinutes + " MIN."
                 }
             },
         ) {
             Text("SAVE AND SCHEDULE", style = MaterialTheme.typography.labelLarge)
+        }
+
+        Button(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RectangleShape,
+            border = BorderStroke(1.dp, BlipWhite),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BlipBlack,
+                contentColor = BlipWhite,
+            ),
+            onClick = {
+                saveThen({ Scheduler.checkNow(context) }) { "SAVED. CHECKING NOW." }
+            },
+        ) {
+            Text("SAVE AND CHECK NOW", style = MaterialTheme.typography.labelLarge)
         }
 
         if (message.isNotEmpty()) {
@@ -227,36 +265,42 @@ private fun PixelRule(colour: Color = BlipDimGrey) {
     }
 }
 
-/** Square blocks, selected one inverted. No dropdown, and no colour. */
+/** One heading over a row of unit boxes that add up. */
 @Composable
-private fun <T> UnitPicker(
-    options: List<T>,
-    selected: T,
-    label: (T) -> String,
-    onSelect: (T) -> Unit,
+private fun Duration(label: String, cells: @Composable RowScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = BlipGrey,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            content = cells,
+        )
+    }
+}
+
+@Composable
+private fun NumberCell(
+    unit: String,
+    value: String,
+    modifier: Modifier,
+    onChange: (String) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        options.forEach { option ->
-            val chosen = option == selected
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .background(if (chosen) BlipWhite else BlipNearBlack)
-                    .border(1.dp, if (chosen) BlipWhite else BlipDimGrey)
-                    .clickable { onSelect(option) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label(option),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (chosen) BlipBlack else BlipGrey,
-                )
-            }
-        }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedTextField(
+            modifier = Modifier.fillMaxWidth(),
+            value = value,
+            onValueChange = onChange,
+            singleLine = true,
+            shape = RectangleShape,
+            textStyle = MaterialTheme.typography.bodyMedium,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            colors = fieldColours(),
+        )
+        Text(unit, style = MaterialTheme.typography.labelSmall, color = BlipGrey)
     }
 }
 
@@ -281,18 +325,21 @@ private fun Field(
             shape = RectangleShape,
             textStyle = MaterialTheme.typography.bodyMedium,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = BlipWhite,
-                unfocusedTextColor = BlipWhite,
-                focusedBorderColor = BlipWhite,
-                unfocusedBorderColor = BlipDimGrey,
-                focusedContainerColor = BlipNearBlack,
-                unfocusedContainerColor = BlipNearBlack,
-                cursorColor = BlipWhite,
-            ),
+            colors = fieldColours(),
         )
     }
 }
+
+@Composable
+private fun fieldColours() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = BlipWhite,
+    unfocusedTextColor = BlipWhite,
+    focusedBorderColor = BlipWhite,
+    unfocusedBorderColor = BlipDimGrey,
+    focusedContainerColor = BlipNearBlack,
+    unfocusedContainerColor = BlipNearBlack,
+    cursorColor = BlipWhite,
+)
 
 /**
  * Criterion settings-3: refused where it is typed. Nothing is coerced or
@@ -300,13 +347,15 @@ private fun Field(
  */
 private fun firstProblem(
     url: String,
-    interval: String,
-    intervalUnit: IntervalUnit,
-    expiry: String,
+    checkDays: String,
+    checkHours: String,
+    checkMinutes: String,
+    expiryMinutes: String,
+    expirySeconds: String,
     maxLength: String,
 ): String? {
     if (!isUsableUrl(url.trim())) return "BACKEND URL MUST BE A FULL HTTP:// OR HTTPS:// ADDRESS."
-    return intervalProblem(interval, intervalUnit)
-        ?: expiryProblem(expiry)
+    return intervalProblem(checkDays, checkHours, checkMinutes)
+        ?: expiryProblem(expiryMinutes, expirySeconds)
         ?: maxLengthProblem(maxLength)
 }

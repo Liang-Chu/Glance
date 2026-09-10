@@ -3,7 +3,9 @@ package dev.liamchu.blip
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -20,6 +22,7 @@ import java.util.concurrent.TimeUnit
 object Scheduler {
 
     private const val WORK_NAME = "blip-poll"
+    private const val NOW_WORK_NAME = "blip-now"
 
     fun schedule(context: Context, intervalMinutes: Long) {
         val request = PeriodicWorkRequestBuilder<BlipWorker>(
@@ -38,5 +41,26 @@ object Scheduler {
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
+    }
+
+    /**
+     * One run, immediately. The floor on repeating work is fifteen minutes, which
+     * makes "does this work at all" a fifteen-minute question; this makes it a
+     * ten-second one. One-shot work has no floor.
+     *
+     * It does not touch the repeating schedule — that is still the thing that has
+     * to be proven, and a check that ran because a button was pressed proves the
+     * call and the notification, not the waking up.
+     */
+    fun checkNow(context: Context) {
+        val request = OneTimeWorkRequestBuilder<BlipWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+            ).build()
+
+        WorkManager.getInstance(context)
+            .enqueueUniqueWork(NOW_WORK_NAME, ExistingWorkPolicy.REPLACE, request)
     }
 }

@@ -148,10 +148,11 @@ class BackendContractTest {
         val settings = Settings(
             url = "http://127.0.0.1:1/blip",
             credential = "",
-            intervalValue = 4,
-            intervalUnit = IntervalUnit.HOURS,
-            expiryValue = 10,
-            expiryUnit = ExpiryUnit.MINUTES,
+            checkDays = 0,
+            checkHours = 4,
+            checkMinutes = 0,
+            expiryMinutes = 10,
+            expirySeconds = 0,
             maxLength = 120,
             lastRunFailed = false,
         )
@@ -192,10 +193,11 @@ class BackendContractTest {
     ) = Settings(
         url = "http://127.0.0.1:" + server!!.address.port + "/blip",
         credential = credential,
-        intervalValue = 4,
-        intervalUnit = IntervalUnit.HOURS,
-        expiryValue = 10,
-        expiryUnit = ExpiryUnit.MINUTES,
+        checkDays = 0,
+        checkHours = 4,
+        checkMinutes = 0,
+        expiryMinutes = 10,
+        expirySeconds = 0,
         maxLength = maxLength,
         lastRunFailed = false,
     )

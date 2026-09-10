@@ -118,14 +118,14 @@ recorded here, not a field quietly added to a screen.
 | --- | --- | --- |
 | Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
 | Credential | opaque string, may be left empty | empty |
-| Check every | a number, plus minutes, hours or days | 4 hours |
-| Expires after | a number, plus seconds or minutes; **0 is legal** | 10 minutes |
+| Check every | days + hours + minutes, added together; at least 15 minutes in total | 4 hours |
+| Expires after | minutes + seconds, added together; **a total of 0 is legal** | 10 minutes |
 | Maximum length | characters | 120 |
 
-~~The check frequency was whole hours, and the expiry whole minutes with a minimum of one.~~ →
-**each is a number plus a unit, and the expiry may be zero** (owner, 2026-09-10: *"i want to the
-interval to be minutes, with option of hour and days"*, and *"for the expiration. i want it can start
-from 0 and unit is second/minutes"*).
+~~A duration was one number beside a row of unit buttons, and only one unit applied at a time.~~ →
+**a duration is a box per unit, added together** (owner, 2026-09-10: *"i expecting the user to set
+the time like x minutes x hour x days instead of a few different units in the same level"*). An empty
+box counts as zero, so most durations are one number typed in one box.
 
 **The interval has a floor, and it is refused rather than clamped.** WorkManager will not repeat work
 more often than every fifteen minutes; asked for less it silently rounds up. The settings screen
@@ -176,8 +176,10 @@ glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
   no code path rounds one up.
 - `settings-9` An expiry of zero saves and schedules. It is never treated as "no expiry", and the
   notification does not outlive the run.
-- `settings-10` Changing only the unit changes the schedule: 60 minutes and 1 hour produce the same
-  interval, and 1 minute and 1 day do not.
+- `settings-10` Two spellings of one duration schedule identically: 1 hour and 60 minutes agree, and
+  1 minute and 1 day do not.
+- `settings-11` A manual check runs one check immediately and leaves the repeating schedule alone:
+  pressing it does not move when the next automatic check falls due.
 
 ## 4 · What a failed run shows
 

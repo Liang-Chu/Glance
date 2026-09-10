@@ -29,12 +29,14 @@ means either the code or [`CONTRACT.md`](CONTRACT.md) is wrong; decide which bef
 **Preconditions**: USB debugging on, the phone authorised, `adb devices` listing it.
 
 1. `"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/app-debug.apk`
-2. Open Blip, fill in the five settings, press **Save and schedule**.
-3. Allow notifications when asked.
-4. In the Even Realities app, under Notifications, allow **Blip**.
+2. Open Blip, fill in the settings, allow notifications when asked.
+3. In the Even Realities app, under Notifications, allow **Blip**.
+4. Press **Save and check now** — one check runs immediately, without waiting out the interval.
+5. Then press **Save and schedule** and leave the phone alone to prove the unattended path.
 
-**Verify**: the notification appears on the phone at the next scheduled run, and is readable on the
-glasses. Neither one alone is the verification.
+**Verify**: the notification appears on the phone and is readable on the glasses. Neither one alone
+is the verification, and step 4 proves only the call and the notification — **not** that the app
+wakes itself, which is what step 5 is for.
 **On failure**: `adb logcat -s Blip:* WM-WorkerWrapper:*` while a run is due.
 
 ## 3 · Land a change
