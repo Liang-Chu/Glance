@@ -17,13 +17,11 @@ share nothing: separate notifications, separate failures, separate schedules.
 Download an APK from releases, or build one:
 
 ```bash
-./gradlew assembleDebug          # ./gradlew.bat on Windows
+./gradlew assembleDebug
 ```
 
-It lands in `app/build/outputs/apk/debug/`, debug-signed, so it sideloads directly.
-
-**To build**: JDK 17, and an Android SDK with platform 37 and build-tools 37. Point
-`local.properties` at your SDK (`sdk.dir=/path/to/Android/Sdk`); it is deliberately not committed.
+Needs JDK 17 and Android SDK 37 — both produce confusing errors if wrong. Everything else is a
+standard Android build.
 
 ## Set it up
 
@@ -55,7 +53,7 @@ Glance sends one `POST`, with `Authorization: Bearer <credential>` when you set 
 `watcher` is the name you gave it, so one backend can serve several. Every limit Glance enforces is
 in the request, so you never hardcode its numbers.
 
-It expects exactly one of three answers:
+It expects one of three answers:
 
 | Status | Body | Glance does |
 | --- | --- | --- |
