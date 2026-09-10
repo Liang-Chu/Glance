@@ -47,6 +47,10 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
+    testImplementation("junit:junit:4.13.2")
+    // android.jar's org.json is a stub that throws in unit tests; this is the real one.
+    testImplementation("org.json:json:20260814")
+
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")

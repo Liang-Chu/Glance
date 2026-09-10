@@ -40,5 +40,6 @@ convention rather than by a compiler error or a module boundary.
 | build | `./gradlew.bat assembleDebug` (`./gradlew` on a POSIX shell) |
 | runs first, unattended | `BlipWorker.doWork()`, woken by WorkManager |
 | runs first, when opened | `MainActivity` |
-| the seam for tests | `Backend.fetch(Settings)` — the only call that leaves the process. **No fake and no tests exist yet**; adding them is tracked in [`BACKLOG.md`](BACKLOG.md) |
+| the seam for tests | `Backend.fetch(Settings)` — the only call that leaves the process. `app/src/test/` drives it against a real loopback HTTP server rather than a fake, so the tests exercise the wire and not a mock of it |
+| run the tests | `./gradlew.bat testDebugUnitTest` |
 | the gate | `./gradlew.bat checkFileLength` — the `C3` line-count check |

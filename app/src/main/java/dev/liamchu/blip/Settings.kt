@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import java.net.URI
+import java.net.URISyntaxException
 
 private val Context.store: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -87,7 +88,9 @@ object SettingsStore {
 fun isUsableUrl(candidate: String): Boolean {
     val parsed = try {
         URI(candidate)
-    } catch (e: IllegalArgumentException) {
+    } catch (e: URISyntaxException) {
+        // URI(String) throws this, not IllegalArgumentException. Catching the wrong
+        // one crashed the settings screen on exactly the input this refuses.
         return false
     }
     val scheme = parsed.scheme?.lowercase()

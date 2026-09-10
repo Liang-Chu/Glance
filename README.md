@@ -19,6 +19,52 @@ but it is an ordinary Android notification and anything that reads those will se
 - Ships with no keys, no accounts, and no server of its own. A fresh install talks to nothing until
   you point it somewhere.
 
+## Connect a backend
+
+Blip has no backend of its own — you run one, and Blip calls it. In the app, fill in the backend
+URL, an optional credential, how often to check, how long a notification lasts, and the maximum
+length. Then **Save and schedule**.
+
+On each run Blip sends:
+
+```http
+POST <your URL>
+Content-Type: application/json
+Authorization: Bearer <your credential>     # the header is absent when the credential is blank
+User-Agent: Blip/<version>
+
+{"max_length": 120}
+```
+
+and expects exactly one of three answers:
+
+```jsonc
+// 200 — show this
+{"title": "Kotlin", "text": "buildList { } beats mutableListOf when you build the list once."}
+
+// 204 — nothing to say right now. Blip stays silent, and this is not an error.
+
+// anything else — a failed run. Blip says so once, then stays quiet until a run succeeds.
+```
+
+Worth knowing before you write it:
+
+- **`title` and `text` are both required and both non-empty.** A missing one is a failed run, not a
+  blank notification — Blip never invents what you did not send.
+- **Blip does not truncate.** `text` must be within the `max_length` it sent and `title` within 32
+  characters; over-length is a failed run.
+- **Your URL is called exactly as typed** — no path appended, no query added, redirects not followed.
+- **One attempt per run, no retry.** 10 s to connect, 30 s to read. The next run is the retry.
+
+Try it before installing anything:
+
+```bash
+curl -sS -X POST "$URL" -H 'Content-Type: application/json'   -H "Authorization: Bearer $CREDENTIAL" -d '{"max_length": 120}' -i
+```
+
+**[`docs/CONTRACT.md`](docs/CONTRACT.md) is the specification and wins over this section**, which is
+only the quickstart. If the two ever disagree, that file is right and this one is a bug.
+
 ## Start here
 
 - Writing the backend — [`docs/CONTRACT.md`](docs/CONTRACT.md)

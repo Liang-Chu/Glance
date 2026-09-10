@@ -13,13 +13,15 @@ shell it is `./gradlew` and everything else is unchanged.
 installed. `local.properties` points at it and is not committed.
 
 1. `./gradlew.bat checkFileLength`
-2. `./gradlew.bat assembleDebug`
+2. `./gradlew.bat testDebugUnitTest`
+3. `./gradlew.bat assembleDebug`
 
 **Verify**: `app/build/outputs/apk/debug/app-debug.apk` exists and
 `"$ANDROID_HOME/build-tools/37.0.0/aapt2.exe" dump badging app/build/outputs/apk/debug/app-debug.apk`
 reports `dev.liamchu.blip`.
-**On failure**: a `C3 breach` from step 1 means split the file named — do not raise the number; that
-is a decision, and [`CONSTRAINTS.md`](CONSTRAINTS.md) says how it is recorded.
+**On failure**: a `C3 breach` means split the file named — do not raise the number; that is a
+decision, and [`CONSTRAINTS.md`](CONSTRAINTS.md) says how it is recorded. A failing contract test
+means either the code or [`CONTRACT.md`](CONTRACT.md) is wrong; decide which before changing either.
 
 ## 2 · Install it on a phone
 
@@ -44,7 +46,10 @@ glasses. Neither one alone is the verification.
 2. Update the documents that own what changed, in this same commit — behaviour changed means the
    owning [`DESIGN.md`](DESIGN.md) section **and its acceptance criteria**, plus the
    [`STATUS.md`](STATUS.md) row for that component. A decision means the `DESIGN.md` section plus a
-   row in its decision index. A change to the call means [`CONTRACT.md`](CONTRACT.md).
+   row in its decision index. A change to the call means [`CONTRACT.md`](CONTRACT.md) **and the
+   quickstart in [`../README.md`](../README.md), in the same commit** — the quickstart restates the
+   shape for a reader who has not opened the docs, so it is the one place in this repository that
+   can silently go stale.
 3. Delete the [`BACKLOG.md`](BACKLOG.md) row if the change closed one. Add a row if it opened one.
 4. `git add -A`
 5. `git commit` — the message says what changed and why, not which files moved.
