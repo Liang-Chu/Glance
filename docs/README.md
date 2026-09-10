@@ -33,7 +33,7 @@ paths are written plainly here rather than linked, because there is nothing to l
 | `PREFERENCES` | `docs/PREFERENCES.md` | project-specific overrides and standing instructions | reserved — first override of a docs-and-constraints default, or first standing instruction |
 | `DECISIONS` | `docs/decisions/NNNN-slug.md` | ADRs — append-only, never retired | reserved — first "we should have written down why" |
 | `RETIRED` | `docs/retired/` + `INDEX.md` | superseded design, finished plans, dead process, evidence | reserved — first doc goes stale |
-| `REFERENCE` | `docs/reference/` | facts about things we do not control: the G2, its companion app, Android's notification behaviour | reserved — first fact we depend on but do not control |
+| `REFERENCE` | [`reference/g2-notifications.md`](reference/g2-notifications.md) | facts about things we do not control: the G2, its companion app, Android's notification behaviour | active |
 | `CONTRACT` | [`CONTRACT.md`](CONTRACT.md) | the shape of the call between this app and the backend the user runs | active |
 | `GLOSSARY` | `docs/GLOSSARY.md` | the closed vocabulary: one definition per term | reserved — first term used with two meanings in one week |
 | `MEASUREMENTS` | `docs/measurements/<campaign>-<date>/` | raw data behind any number a decision rests on, plus that campaign's write-up | reserved — first decision backed by numbers |
