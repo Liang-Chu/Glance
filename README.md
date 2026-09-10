@@ -55,6 +55,8 @@ Worth knowing before you write it:
   characters; over-length is a failed run.
 - **Your URL is called exactly as typed** — no path appended, no query added, redirects not followed.
 - **One attempt per run, no retry.** 10 s to connect, 30 s to read. The next run is the retry.
+- **Plain `http` works**, so a box on your own network is fine. Over `http` your credential crosses
+  the network in the clear — use `https` for anything off a network you trust.
 
 Try it before installing anything:
 

@@ -35,6 +35,7 @@ User-Agent: Blip/<version>
 | body | a JSON object with exactly one member, `max_length`, an integer count of characters | test "posts the max length to the configured url" |
 | redirects | not followed. A redirect is a failed run | test "a redirect is not followed" |
 | timeouts | 10 s to connect, 30 s to read | **implemented, not asserted by any test** |
+| transport | `http` or `https`; cleartext is permitted so a backend on the user's own network works | manifest sets `usesCleartextTraffic`; needs a device to confirm |
 | retries | none. One attempt per run; the next run is the retry | **implemented, not asserted by any test** |
 | unreachable | a failed run, named as such | test "an unreachable backend is a failure" |
 

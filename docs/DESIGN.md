@@ -17,6 +17,7 @@
 | What is the exact shape of the call to the backend? | **[`CONTRACT.md`](CONTRACT.md)** |
 | What happens to a response longer than the length setting? | **[`CONTRACT.md`](CONTRACT.md) "Responses"** (owner, 2026-09-10: a breach, not something to trim) |
 | What can the user change? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** (owner, 2026-09-10) |
+| Does a plain `http` backend work, and what does it cost? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** |
 | What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
 | What is the app written in, and what runs the interval? | **[`DESIGN.md`](DESIGN.md) "The stack"** |
 
@@ -120,6 +121,13 @@ recorded here, not a field quietly added to a screen.
 | Expiration | minutes | 10 |
 | Maximum length | characters | 120 |
 
+**Plain `http` has to work.** The backend belongs to the user and is commonly a machine on their
+own network with no certificate. Android blocks cleartext from targetSdk 28 onwards, so the app opts
+back in — otherwise the `http` this screen accepts would fail at the moment it was used, which is
+precisely the split between "refused where it is typed" and "broken where it is used" that criterion
+`settings-3` exists to close. The cost is real and belongs to the user: over `http` the credential
+crosses the network in the clear, so anything outside a network they trust should be `https`.
+
 **The credential stays on the device.** It lives in the app's private storage like every other
 setting, the app opts out of Android backup so it is not carried off to a cloud account, and nothing
 writes it to a log. There is no separate secret store: on a device that is not rooted, app-private
@@ -141,6 +149,8 @@ glasses actually display is tracked in [`BACKLOG.md`](BACKLOG.md).
   backup so it cannot leave the device that way.
 - `settings-6` No credential, and no part of one, is ever written to a log or into the text of a
   notification.
+- `settings-7` A backend reached over plain `http` works on a current Android release. Nothing the
+  settings screen accepts fails later for being cleartext.
 
 ## 4 · What a failed run shows
 

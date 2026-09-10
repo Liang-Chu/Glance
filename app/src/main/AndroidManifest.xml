@@ -5,11 +5,16 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
-      allowBackup is off so the credential cannot leave the device in a cloud backup.
-      DESIGN.md "What the user can change", criterion settings-5.
+      allowBackup is off so the credential cannot leave the device in a cloud
+      backup (DESIGN.md "What the user can change", criterion settings-5).
+
+      Cleartext is opted back into deliberately: Android blocks plain HTTP from
+      targetSdk 28, but the backend is the user's own and is often a machine on
+      their own network with no certificate (criterion settings-7).
     -->
     <application
         android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@drawable/ic_blip"
