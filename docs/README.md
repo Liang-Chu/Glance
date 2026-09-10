@@ -43,7 +43,7 @@ paths are written plainly here rather than linked, because there is nothing to l
 | `SHIPPED` | `docs/SHIPPED.md` | append-only record of what was delivered and when | reserved — first time git log cannot answer "what changed between these two dates" |
 | `NEGATIVE_SPACE` | a section inside [`CONSTRAINTS.md`](CONSTRAINTS.md) | what is deliberately not done, and why | reserved — first "we discussed this, we are not doing it" |
 | `LESSONS` | a section inside [`CONSTRAINTS.md`](CONSTRAINTS.md) | mistakes worth their own entry, each with its cost | reserved — first mistake worth its own entry |
-| `SRC` | decided with the stack; [`ORIENTATION.md`](ORIENTATION.md) names it once it exists | source root — not a doc slot; the path the audit scans read | not a doc slot |
+| `SRC` | `app/src/` | source root — not a doc slot; the path the checks read | not a doc slot |
 
 ## Precedence
 

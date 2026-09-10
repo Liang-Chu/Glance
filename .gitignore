@@ -1,6 +1,30 @@
-local.properties
-.gradle/
+# Build output
 build/
+.gradle/
 *.apk
+*.aab
+
+# Machine-specific. sdk.dir differs on every machine and must never be committed.
+local.properties
+
+# Signing material
+*.jks
 *.keystore
+keystore.properties
+
+# Editors
 .idea/
+*.iml
+.vscode/
+
+# Agent tooling. Personal to whoever is working on this, and not part of the
+# project — see CLAUDE.md, which is kept because it is about this repository.
+.claude/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Python bytecode from the example backend
+__pycache__/
+*.pyc

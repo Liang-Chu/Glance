@@ -32,11 +32,11 @@ means either the code or [`CONTRACT.md`](CONTRACT.md) is wrong; decide which bef
 2. Open Glance, fill in the settings, allow notifications when asked.
 3. In the Even Realities app, under Notifications, allow **Glance**.
 4. Press **Save and check now** — one check runs immediately, without waiting out the interval.
-5. Then press **Save and schedule** and leave the phone alone to prove the unattended path.
+5. Then press **Save and schedule** and leave the phone alone.
 
-**Verify**: the notification appears on the phone and is readable on the glasses. Neither one alone
-is the verification, and step 4 proves only the call and the notification — **not** that the app
-wakes itself, which is what step 5 is for.
+**Verify**: the notification appears on the phone and is readable on the glasses. Neither one alone is
+the verification. **Save and check now** proves the call and the notification only; that the app
+wakes *itself* is proven by leaving it alone and seeing a run arrive unattended.
 **On failure**: `adb logcat -s Glance:* WM-WorkerWrapper:*` while a run is due.
 
 ## 3 · Land a change
@@ -85,21 +85,21 @@ routine step of ordinary work — [`DESIGN.md`](DESIGN.md) and [`STATUS.md`](STA
 correct by "Land a change", not by scanning.
 **Preconditions**: run from the repository root, on a clean working tree.
 
-1. Read `.claude/skills/docs-and-constraints/reference/cleanup-audit.md`.
-2. Run its seven scans with `DOCS=docs`, `RET=docs/retired`, `ROOT_README=README.md`,
-   `AGENT_ENTRY=CLAUDE.md`, `SRC=app/src`.
-3. Fix every finding in one commit, whose message says why each document was changed or retired.
+1. `bash tools/check-docs.sh`
+2. Fix every finding in one commit, whose message says why each document was changed.
 
-**Verify**: re-run the scans; each returns nothing, or a stated reason why a scan had no input.
-**On failure**: a scan reporting a missing input is not a pass — it produced no verdict. Say so.
+**Verify**: re-run it; it exits 0 and prints `Documentation checks passed.`
+**On failure**: nothing it reports is stylistic. A check that says an input is missing has produced no
+verdict rather than a pass — say so rather than counting it as clean.
 
 ## 6 · Activate a reserved slot
 
 **When**: the trigger written in the slot's row in [`README.md`](README.md) fires.
 **Preconditions**: the slot has one real item to hold. Not before.
 
-1. Copy that slot's skeleton from `.claude/skills/docs-and-constraints/reference/templates.md`. Do
-   not invent a format.
+1. Follow the shape of a document already in the same family rather than inventing a format —
+   [`reference/g2-notifications.md`](reference/g2-notifications.md) for a reference,
+   [`CONTRACT.md`](CONTRACT.md) for an interface.
 2. Write the file at the path the map gives it.
 3. Change that row's state in [`README.md`](README.md) from `reserved` to `active`, and turn the
    plain path into a link, in this same commit.

@@ -9,6 +9,8 @@ Why anything is this way is [`DESIGN.md`](DESIGN.md); what is built is [`STATUS.
 <repo root>/
   app/        the Android application — the only module
   docs/       the documentation set; docs/README.md is its only entrance
+  examples/   a reference backend that answers CONTRACT.md, for people writing their own
+  tools/      the documentation checks, run before a release
   gradle/     the Gradle wrapper
   .claude/    agent configuration: the skills this repository loads
 ```
@@ -47,3 +49,4 @@ convention rather than by a compiler error or a module boundary.
 | the seam for tests | `Backend.fetch(Settings)` — the only call that leaves the process. `app/src/test/` drives it against a real loopback HTTP server rather than a fake, so the tests exercise the wire and not a mock of it |
 | run the tests | `./gradlew.bat testDebugUnitTest` |
 | the gate | `./gradlew.bat checkFileLength` — the `C3` line-count check |
+| the doc checks | `bash tools/check-docs.sh` |

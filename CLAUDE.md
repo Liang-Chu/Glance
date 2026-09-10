@@ -16,6 +16,8 @@ fact restated here is a defect.
   list of open items. Done means the row is deleted; the record is the git history.
 - **[`docs/CONSTRAINTS.md`](docs/CONSTRAINTS.md) holds gates, not advice.** Breaking one appends a
   dated row beneath it in the same commit and never edits the rule's own wording.
-- **Before creating, renaming, splitting, moving, or retiring any document**, read
-  [`.claude/skills/docs-and-constraints/SKILL.md`](.claude/skills/docs-and-constraints/SKILL.md) and
-  follow it. Nothing is created outside the slot map in [`docs/README.md`](docs/README.md).
+- **Before creating, renaming, splitting, moving, or retiring any document**, read the lifecycle
+  rule in [`docs/README.md`](docs/README.md) and the procedure in
+  [`docs/PROCESS.md`](docs/PROCESS.md). Nothing is created outside the slot map in
+  [`docs/README.md`](docs/README.md), and a rename is finished only when every citation of the old
+  name is fixed in the same commit — `bash tools/check-docs.sh` is what tells you.

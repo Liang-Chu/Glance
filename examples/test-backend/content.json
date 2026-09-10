@@ -1,0 +1,4 @@
+{
+  "title": "Kotlin",
+  "text": "buildList { } beats mutableListOf when the list is built once and never touched again."
+}

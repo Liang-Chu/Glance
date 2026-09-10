@@ -3,36 +3,45 @@
 An Android app that asks a backend **you** run for something to say, on a schedule you set, and shows
 it as a notification that clears itself.
 
-Built to feed [Even G2](https://www.evenrealities.com/) glasses through their notification feature,
-but it is an ordinary Android notification and anything that reads those will see it.
+Built to feed [Even Realities G2](https://www.evenrealities.com/) glasses through their notification
+feature — but it posts an ordinary Android notification, so anything that reads those will see it.
 
-## What it does
+**Glance has no backend of its own.** No API keys, no accounts, no server. A fresh install talks to
+nothing until you point it at something you control.
 
-*Aspirational: this section describes the intended product. What is actually built is
-[`docs/STATUS.md`](docs/STATUS.md).*
+You can have several **watchers**, each named, each with its own backend, schedule and limits. They
+share nothing: separate notifications, separate failures, separate schedules.
 
-- Calls one backend you wrote, at your URL with your credential, on an interval you choose.
-- Turns the reply into a notification that takes itself away again, so you never deal with it on the
-  phone.
-- Decides nothing about what the notification says — that is your backend's job, and the shape of the
-  call between you is [`docs/CONTRACT.md`](docs/CONTRACT.md).
-- Ships with no keys, no accounts, and no server of its own. A fresh install talks to nothing until
-  you point it somewhere.
+## Install
 
-## Connect a backend
+Download an APK from releases, or build one:
 
-Glance has no backend of its own — you run one, and Glance calls it. In the app, fill in the backend
-URL, an optional credential, how often to check, how long a notification lasts, and the maximum
-length. Then **Save and schedule**.
+```bash
+./gradlew assembleDebug          # ./gradlew.bat on Windows
+```
 
-On each run Glance sends:
+It lands in `app/build/outputs/apk/debug/`, debug-signed, so it sideloads directly.
 
-```http
-POST <your URL>
-Content-Type: application/json
-Authorization: Bearer <your credential>     # the header is absent when the credential is blank
-User-Agent: Glance/<version>
+**To build**: JDK 17, and an Android SDK with platform 37 and build-tools 37. Point
+`local.properties` at your SDK (`sdk.dir=/path/to/Android/Sdk`); it is deliberately not committed.
 
+## Set it up
+
+1. **+ NEW WATCHER** — give it a name, a backend URL, and a credential if your backend wants one.
+2. **Save and check now** — runs one check immediately instead of waiting out the interval.
+3. Allow notifications when asked.
+4. In the Even Realities app, under **Notifications**, allow **Glance**.
+
+A new watcher starts at once a day, gone after three seconds, 80 characters.
+
+## Write a backend
+
+Full specification: [`docs/CONTRACT.md`](docs/CONTRACT.md). Working reference implementation:
+[`examples/test-backend/`](examples/test-backend/), about a hundred lines of dependency-free Python.
+
+Glance sends one `POST`, with `Authorization: Bearer <credential>` when you set one:
+
+```json
 {
   "watcher": "Kotlin tips",
   "max_length": 80,
@@ -43,48 +52,44 @@ User-Agent: Glance/<version>
 }
 ```
 
-`watcher` is the name you gave it, so **one backend can serve several watchers** and answer
-differently for each. Every limit Glance will enforce is in that request too, so you never have to
-hardcode one of its numbers.
-`max_length` caps `text`, `title_max_length` caps `title`; exceed either and the run fails.
+`watcher` is the name you gave it, so one backend can serve several. Every limit Glance enforces is
+in the request, so you never hardcode its numbers.
 
-and expects exactly one of three answers:
+It expects exactly one of three answers:
 
-```jsonc
-// 200 — show this
-{"title": "Kotlin", "text": "buildList { } beats mutableListOf when you build the list once."}
+| Status | Body | Glance does |
+| --- | --- | --- |
+| `200` | `{"title": "...", "text": "..."}` | shows it |
+| `204` | none | nothing, silently — not an error |
+| anything else | ignored | one failure notice, then quiet until a run succeeds |
 
-// 204 — nothing to say right now. Glance stays silent, and this is not an error.
+Both members are **required and non-empty** — a missing one is a failed run, not a blank
+notification. Glance **does not truncate**: exceed `max_length` or `title_max_length` and the run
+fails. Your URL is called exactly as typed, redirects are not followed, and there is one attempt per
+run with no retry.
 
-// anything else — a failed run. Glance says so once, then stays quiet until a run succeeds.
-```
+Plain `http` works, so a box on your own network is fine — but the credential crosses the network in
+the clear, so use `https` off a network you trust.
 
-Worth knowing before you write it:
+## Known limits
 
-- **`title` and `text` are both required and both non-empty.** A missing one is a failed run, not a
-  blank notification — Glance never invents what you did not send.
-- **Glance does not truncate.** `text` must be within the `max_length` it sent and `title` within 32
-  characters; over-length is a failed run.
-- **Your URL is called exactly as typed** — no path appended, no query added, redirects not followed.
-- **One attempt per run, no retry.** 10 s to connect, 30 s to read. The next run is the retry.
-- **Plain `http` works**, so a box on your own network is fine. Over `http` your credential crosses
-  the network in the clear — use `https` for anything off a network you trust.
+- **Checks happen at most every 15 minutes** — WorkManager's floor for repeating work. Ask for less
+  and Android silently rounds up, so Glance refuses instead.
+- **Notifications live at least 3 seconds**, or they risk vanishing before the glasses are handed
+  them.
+- **How much text the glasses display is unmeasured.** 86 characters have been read; the ceiling is
+  unknown — [`docs/reference/g2-notifications.md`](docs/reference/g2-notifications.md).
+- **Intervals are best-effort.** Android batches background work when the device is idle.
 
-Try it before installing anything:
+## Documentation
 
-```bash
-curl -sS -X POST "$URL" -H 'Content-Type: application/json'   -H "Authorization: Bearer $CREDENTIAL" \
-  -d '{"max_length": 80, "title_max_length": 32}' -i
-```
+Everything starts at [`docs/README.md`](docs/README.md). [`DESIGN.md`](docs/DESIGN.md) is why anything
+is the way it is; [`STATUS.md`](docs/STATUS.md) is what is actually true right now, including what has
+never been run.
 
-**[`docs/CONTRACT.md`](docs/CONTRACT.md) is the specification and wins over this section**, which is
-only the quickstart. If the two ever disagree, that file is right and this one is a bug.
+Contributing: read [`docs/PROCESS.md`](docs/PROCESS.md). The rule that matters most is that
+**documentation moves in the same commit as the code**.
 
-## Start here
+## Licence
 
-- Writing the backend — [`docs/CONTRACT.md`](docs/CONTRACT.md)
-- What exists and what runs today — [`docs/STATUS.md`](docs/STATUS.md)
-- Why anything is built the way it is — [`docs/DESIGN.md`](docs/DESIGN.md)
-- How to build, run, and review — [`docs/PROCESS.md`](docs/PROCESS.md)
-
-Everything else starts at [`docs/README.md`](docs/README.md) — the only entrance to the docs.
+MIT — see [`LICENSE`](LICENSE).
