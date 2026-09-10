@@ -3,9 +3,10 @@
 *The app calls one backend the user wrote; this file is the whole of what the two sides agree on.
 Everything the notification says is decided on the backend's side of it.*
 
-Owner: this repository defines the shape · **not yet verified against an implementation — no client
-and no reference backend exist.** Every clause below is a specification, and the `Verified` column
-says so until code exercises it.
+Owner: this repository defines the shape · **the client side is implemented and has never been
+run.** `app/src/main/java/dev/liamchu/blip/Backend.kt` is the whole of it, and no backend has ever
+answered it — so every clause below is still a specification, and the `Verified` column says which
+code implements it rather than claiming it works.
 
 What a backend author still has to build is theirs; what this app still has to build is
 [`BACKLOG.md`](BACKLOG.md), not this file.
@@ -26,14 +27,14 @@ User-Agent: Blip/<version>
 
 | Clause | Shape | Verified |
 | --- | --- | --- |
-| method | `POST`, always | not yet — no implementation |
-| URL | the configured URL verbatim; no path appended, no query added | not yet — no implementation |
-| `Content-Type` | `application/json` | not yet — no implementation |
-| `Authorization` | `Bearer <credential>`; the header is **absent**, not empty, when no credential is set | not yet — no implementation |
-| body | a JSON object with exactly one member, `max_length`, an integer count of characters | not yet — no implementation |
-| redirects | not followed. A redirect is a failed run | not yet — no implementation |
-| timeouts | 10 s to connect, 30 s to read | not yet — no implementation |
-| retries | none. One attempt per run; the next run is the retry | not yet — no implementation |
+| method | `POST`, always | implemented in `Backend.kt`; never exercised |
+| URL | the configured URL verbatim; no path appended, no query added | implemented in `Backend.kt`; never exercised |
+| `Content-Type` | `application/json` | implemented in `Backend.kt`; never exercised |
+| `Authorization` | `Bearer <credential>`; the header is **absent**, not empty, when no credential is set | implemented in `Backend.kt`; never exercised |
+| body | a JSON object with exactly one member, `max_length`, an integer count of characters | implemented in `Backend.kt`; never exercised |
+| redirects | not followed. A redirect is a failed run | implemented in `Backend.kt`; never exercised |
+| timeouts | 10 s to connect, 30 s to read | implemented in `Backend.kt`; never exercised |
+| retries | none. One attempt per run; the next run is the retry | implemented in `Backend.kt`; never exercised |
 
 ## Responses
 
@@ -41,9 +42,9 @@ Three outcomes, and nothing else is defined.
 
 | Status | Body | What the app does | Verified |
 | --- | --- | --- | --- |
-| `200` | `{"title": "...", "text": "..."}` | posts the notification | not yet — no implementation |
-| `204` | none | posts nothing; **this is not a failure** | not yet — no implementation |
-| anything else | ignored | failed run | not yet — no implementation |
+| `200` | `{"title": "...", "text": "..."}` | posts the notification | implemented in `Backend.kt`; never exercised |
+| `204` | none | posts nothing; **this is not a failure** | implemented in `Backend.kt`; never exercised |
+| anything else | ignored | failed run | implemented in `Backend.kt`; never exercised |
 
 On `200`, **both members are required and both must be non-empty.** There are no optional fields and
 no defaults: a response missing `title`, missing `text`, or carrying an empty string for either is a
@@ -52,8 +53,8 @@ members are ignored, so a backend may return more without breaking anything.
 
 | Limit | Value | Verified |
 | --- | --- | --- |
-| `text` length | at most the `max_length` sent in the request | not yet — no implementation |
-| `title` length | at most 32 characters | not yet — no implementation |
+| `text` length | at most the `max_length` sent in the request | implemented in `Backend.kt`; never exercised |
+| `title` length | at most 32 characters | implemented in `Backend.kt`; never exercised |
 
 **An over-length response is a breach, not something to trim** (owner, 2026-09-10). The app does not
 truncate: it sent the limit, the backend agreed to respect it, and quietly cutting the text would

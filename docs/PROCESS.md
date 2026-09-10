@@ -3,10 +3,39 @@
 > How this project is built, run, deployed, and reviewed **today**. Current state only.
 > Superseded procedures move to `docs/retired/process/`; this file carries no history.
 
-There is no build and no run procedure yet, because there is no source. What exists is
-[`STATUS.md`](STATUS.md); the work that would add a build is in [`BACKLOG.md`](BACKLOG.md).
+Commands are written for Git Bash on Windows, where the wrapper is `./gradlew.bat`. On a POSIX
+shell it is `./gradlew` and everything else is unchanged.
 
-## 1 · Land a change
+## 1 · Build the app
+
+**When**: any change under `app/`.
+**Preconditions**: JDK 17 on `JAVA_HOME`, and an Android SDK with platform 37 and build-tools 37
+installed. `local.properties` points at it and is not committed.
+
+1. `./gradlew.bat checkFileLength`
+2. `./gradlew.bat assembleDebug`
+
+**Verify**: `app/build/outputs/apk/debug/app-debug.apk` exists and
+`"$ANDROID_HOME/build-tools/37.0.0/aapt2.exe" dump badging app/build/outputs/apk/debug/app-debug.apk`
+reports `dev.liamchu.blip`.
+**On failure**: a `C3 breach` from step 1 means split the file named — do not raise the number; that
+is a decision, and [`CONSTRAINTS.md`](CONSTRAINTS.md) says how it is recorded.
+
+## 2 · Install it on a phone
+
+**When**: verifying anything. `C9` counts the running thing, and a build log is not one.
+**Preconditions**: USB debugging on, the phone authorised, `adb devices` listing it.
+
+1. `"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/app-debug.apk`
+2. Open Blip, fill in the five settings, press **Save and schedule**.
+3. Allow notifications when asked.
+4. In the Even Realities app, under Notifications, allow **Blip**.
+
+**Verify**: the notification appears on the phone at the next scheduled run, and is readable on the
+glasses. Neither one alone is the verification.
+**On failure**: `adb logcat -s Blip:* WM-WorkerWrapper:*` while a run is due.
+
+## 3 · Land a change
 
 **When**: every commit.
 **Preconditions**: the change is understood well enough to say which document owns it.
@@ -15,7 +44,7 @@ There is no build and no run procedure yet, because there is no source. What exi
 2. Update the documents that own what changed, in this same commit — behaviour changed means the
    owning [`DESIGN.md`](DESIGN.md) section **and its acceptance criteria**, plus the
    [`STATUS.md`](STATUS.md) row for that component. A decision means the `DESIGN.md` section plus a
-   row in its decision index.
+   row in its decision index. A change to the call means [`CONTRACT.md`](CONTRACT.md).
 3. Delete the [`BACKLOG.md`](BACKLOG.md) row if the change closed one. Add a row if it opened one.
 4. `git add -A`
 5. `git commit` — the message says what changed and why, not which files moved.
@@ -24,7 +53,7 @@ There is no build and no run procedure yet, because there is no source. What exi
 **On failure**: fix the commit before moving on; a doc update deferred to "later" is the failure this
 step exists to prevent.
 
-## 2 · Record a decision
+## 4 · Record a decision
 
 **When**: something is settled that a future reader would otherwise re-litigate.
 **Preconditions**: it is genuinely a decision. If unsure, it is not one — leave it in
@@ -41,22 +70,23 @@ step exists to prevent.
 the section.
 **On failure**: a decision in the section with no index row is an incomplete commit — add the row.
 
-## 3 · Audit the documentation
+## 5 · Audit the documentation
 
 **When**: before a release, a rebuild, or a migration; after a rename or a large merge; whenever a
-document turned out to have told someone something untrue. Never on a calendar.
+document turned out to have told someone something untrue. Never on a calendar, and never as a
+routine step of ordinary work — [`DESIGN.md`](DESIGN.md) and [`STATUS.md`](STATUS.md) are kept
+correct by "Land a change", not by scanning.
 **Preconditions**: run from the repository root, on a clean working tree.
 
 1. Read `.claude/skills/docs-and-constraints/reference/cleanup-audit.md`.
 2. Run its seven scans with `DOCS=docs`, `RET=docs/retired`, `ROOT_README=README.md`,
-   `AGENT_ENTRY=CLAUDE.md`, and `SRC` set to the source root named in
-   [`ORIENTATION.md`](ORIENTATION.md).
+   `AGENT_ENTRY=CLAUDE.md`, `SRC=app/src`.
 3. Fix every finding in one commit, whose message says why each document was changed or retired.
 
 **Verify**: re-run the scans; each returns nothing, or a stated reason why a scan had no input.
 **On failure**: a scan reporting a missing input is not a pass — it produced no verdict. Say so.
 
-## 4 · Activate a reserved slot
+## 6 · Activate a reserved slot
 
 **When**: the trigger written in the slot's row in [`README.md`](README.md) fires.
 **Preconditions**: the slot has one real item to hold. Not before.

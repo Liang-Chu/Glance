@@ -179,7 +179,9 @@ so, and a run that ends that way posts nothing, stays silent, and leaves the fai
 
 **Kotlin, Jetpack Compose for the settings screen, WorkManager for the interval, DataStore for the
 settings.** Minimum SDK **26**, because the notification carries its own lifetime and that arrived
-there; compile and target **36**.
+there; compile and target **37**, which is the floor the current androidx libraries impose rather
+than a level anything here asks for. Kotlin is not a separate Gradle plugin: the Android plugin
+carries it from version 9, and adding the old one is an error.
 
 **WorkManager is the load-bearing choice.** A repeating background job survives Doze only when the
 operating system is the thing scheduling it, and WorkManager is the API that exists for that. A
