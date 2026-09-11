@@ -3,9 +3,8 @@
 *The present view. [`BACKLOG.md`](BACKLOG.md) is what is not done; this is what is. Overwritten,
 never appended — a dated snapshot of one day belongs in a report.*
 
-Stage: **it works, all the way to the glasses**, and now carries many named watchers. What is not yet
-proven is the app waking itself, and that two watchers coexist on a real phone · last full sweep
-2026-09-10
+Stage: **1.0** — it works, all the way to the glasses, and carries many named watchers. Two claims
+are still unobserved and are named as such below · last full sweep 2026-09-10
 
 | Component | Covers | State | Verified how, when |
 | --- | --- | --- | --- |
