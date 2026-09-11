@@ -12,7 +12,6 @@ Why anything is this way is [`DESIGN.md`](DESIGN.md); what is built is [`STATUS.
   examples/   a reference backend that answers CONTRACT.md, for people writing their own
   tools/      the documentation checks, run before a release
   gradle/     the Gradle wrapper
-  .claude/    agent configuration: the skills this repository loads
 ```
 
 Inside `app/src/main/java/dev/liamchu/glance/`, one file per job:

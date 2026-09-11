@@ -58,13 +58,20 @@ else
   report "STATUS.md is missing" "  the checks that read it produced no verdict"
 fi
 
-# 6 · ORIENTATION against the tree, both directions.
+# 6 · ORIENTATION against the tree, both directions. Checking only one of them
+#     lets the code map name a directory that is not there, which reads as a
+#     missing file to anyone who just cloned it.
 if [ -f "$DOCS/ORIENTATION.md" ]; then
   unmapped=$(for d in */; do
       case "${d%/}" in .*|build) continue;; esac
       grep -q "${d%/}" "$DOCS/ORIENTATION.md" || echo "  ${d%/}/ is not named in ORIENTATION.md"
     done)
   [ -n "$unmapped" ] && report "A source directory is missing from the code map" "$unmapped"
+
+  phantom=$(grep -oE '^[[:space:]]+\.?[A-Za-z_][A-Za-z_0-9.-]*/' "$DOCS/ORIENTATION.md"     | tr -d ' ' | sort -u     | while read -r d; do
+        [ -d "${d%/}" ] || grep -q "${d}.*DOES NOT EXIST" "$DOCS/ORIENTATION.md"           || echo "  $d is named in ORIENTATION.md but is not in the repository"
+      done)
+  [ -n "$phantom" ] && report "The code map names a directory that does not exist" "$phantom"
 fi
 
 # 7 · A section may show the current ruling and at most the one it replaced.
