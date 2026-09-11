@@ -1,8 +1,15 @@
 # Build output
 build/
 .gradle/
+.cxx/
+captures/
 *.apk
 *.aab
+*.apks
+# apksigner writes this beside a signed APK. "*.apk" does not match it, which is
+# how one reached a commit.
+*.idsig
+*.hprof
 
 # Machine-specific. sdk.dir differs on every machine and must never be committed.
 local.properties
