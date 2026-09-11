@@ -14,7 +14,11 @@ installed. `local.properties` points at it and is not committed.
 
 1. `./gradlew.bat checkFileLength`
 2. `./gradlew.bat testDebugUnitTest`
-3. `./gradlew.bat assembleDebug`
+3. `./gradlew.bat assembleDebug` for testing, or `assembleRelease` for anything shipped
+
+A debug build is about twelve megabytes and a release build about one and a half:
+R8 runs only on release, and without it the app carries the whole of Compose and
+androidx whether it calls them or not. **Never publish a debug build.**
 
 **Verify**: `app/build/outputs/apk/debug/app-debug.apk` exists and
 `"$ANDROID_HOME/build-tools/37.0.0/aapt2.exe" dump badging app/build/outputs/apk/debug/app-debug.apk`

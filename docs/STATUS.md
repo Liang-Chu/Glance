@@ -8,7 +8,8 @@ are still unobserved and are named as such below · last full sweep 2026-09-10
 
 | Component | Covers | State | Verified how, when |
 | --- | --- | --- | --- |
-| Android app package | `app/`, `app/build/outputs/apk/debug/app-debug.apk` | **live** | installed on the owner's phone and opened; `aapt2 dump badging` reports `dev.liamchu.glance`, targetSdk 37, 2026-09-10 |
+| Android app package, debug | `app/`, `app/build/outputs/apk/debug/` | **live** | installed on the owner's phone and opened; `aapt2 dump badging` reports `dev.liamchu.glance` 1.0, targetSdk 37, 2026-09-10 |
+| Android app package, release | `app/build/outputs/apk/release/` | **built, never run** | `assembleRelease` succeeds and R8 takes it from 12.5 MB to 1.37 MB. **Nothing has run the minified build**, and minification is exactly what breaks at runtime rather than at build time, 2026-09-10 |
 | Settings screens | `MainActivity.kt`, `WatcherEdit.kt`, `Components.kt`, `Theme.kt` | **built, never run** | the single-settings screen was used and worked; the watcher list and editor that replaced it compile and have not been opened, 2026-09-10 |
 | Watchers, many and named | `Watcher.kt`, `Settings.kt` | **built, never run** | `SettingsTest` covers the JSON round trip, the refusal of a malformed stored watcher, and every entry rule. Two watchers have never run side by side on a device, 2026-09-10 |
 | Backend client | `app/src/main/java/dev/liamchu/glance/Backend.kt` | **live** | the backend's own log shows the call arriving from the phone — `User-Agent: Glance/0.1`, carrying `max_length` 120, `title_max_length` 32, `expires_after_seconds` 63, `interval_minutes` 15 — and answered 200. Also driven across every outcome by `BackendContractTest`, 2026-09-10 |
