@@ -1,6 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+}
+
+// Optional publisher-owned signing material. Public builds need no local configuration.
+val signingFile = rootProject.file("local/keystore.properties")
+val releaseKey = Properties().apply { if (signingFile.exists()) signingFile.inputStream().use { load(it) } }
+if (signingFile.exists()) {
+    require(listOf("storeFile", "storePassword", "keyAlias", "keyPassword").all { !releaseKey.getProperty(it).isNullOrBlank() }) {
+        "local/keystore.properties is incomplete"
+    }
 }
 
 android {
@@ -12,12 +23,22 @@ android {
         // DESIGN.md "The stack": 26 is where a notification can carry its own lifetime.
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 7
+        versionName = "2.0"
+    }
+
+    signingConfigs {
+        if (signingFile.exists()) create("localRelease") {
+            storeFile = rootProject.file(releaseKey.getProperty("storeFile"))
+            storePassword = releaseKey.getProperty("storePassword")
+            keyAlias = releaseKey.getProperty("keyAlias")
+            keyPassword = releaseKey.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("localRelease")
             // Without this the app is ~12 MB of Compose and androidx that it never
             // calls. R8 keeps only what is reachable.
             isMinifyEnabled = true
@@ -53,6 +74,11 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-installations")
+    // Bundled, on-device QR decoding; scanning needs no network or Play services.
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     testImplementation("junit:junit:4.13.2")
     // android.jar's org.json is a stub that throws in unit tests; this is the real one.

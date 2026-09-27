@@ -3,16 +3,16 @@
 *The app calls one backend the user wrote; this file is the whole of what the two sides agree on.
 Everything the notification says is decided on the backend's side of it.*
 
-Owner: this repository defines the shape · **the client side is implemented and exercised against a
-real HTTP server**, on 2026-09-10, by `app/src/test/java/dev/liamchu/glance/BackendContractTest.kt`.
-`Backend.kt` is the whole of the client. No backend written by a person has answered it yet, and no
-run has happened on a phone — the `Verified` column names the test per clause, and says plainly where
-there is none.
+Owner: this repository defines the shape. Polling has been observed on a phone (2026-09-10).
+`BackendContractTest` exercises polling against real loopback HTTP. `PushContractTest` exercises
+push registration/removal over HTTP and message validation locally (2026-09-25). The owner reported FCM working on Samsung; the new configuration-import flow has not been device-tested; [`STATUS.md`](STATUS.md) records that boundary.
 
 What a backend author still has to build is theirs; what this app still has to build is
 [`BACKLOG.md`](BACKLOG.md), not this file.
 
 ## The call
+
+This section describes **polling**. Push watchers use "Push delivery" below.
 
 One `POST`, to the URL the user configured, exactly as they typed it. **The app appends no path and
 adds no query parameters** — if the backend wants a path, it belongs in the URL the user enters.
@@ -51,7 +51,7 @@ exceed either and the run fails.
 | method | `POST`, always | test "posts to the configured url" |
 | URL | the configured URL verbatim; no path appended, no query added | same test — the server answers one path only, so an appended path would miss it |
 | limits it states | are the limits it then enforces | test "the limits it sends are the ones it then enforces" |
-| `Content-Type` | `application/json` | **implemented, not asserted by any test** |
+| `Content-Type` | `application/json` | test "posts to the configured url" |
 | `Authorization` | `Bearer <credential>`; the header is **absent**, not empty, when no credential is set | tests "sends the credential as a bearer token" and "omits the authorization header entirely when no credential is set" |
 | body | a JSON object carrying the fields above | test "tells the backend every limit it has to work within" |
 | redirects | not followed. A redirect is a failed run | test "a redirect is not followed" |
@@ -70,7 +70,9 @@ Three outcomes, and nothing else is defined.
 | `204` | none | posts nothing; **this is not a failure** | test "two hundred and four is not a failure" |
 | anything else | ignored | failed run | test "a server error is a failure carrying the status" |
 
-On `200`, **both members are required and both must be non-empty.** There are no optional fields and
+On `200`, **both members must be non-empty JSON strings.** Numbers, booleans, objects, arrays and
+null are rejected instead of being converted to text. The entire response body, including extra
+fields, is limited to **64 KiB** and read with a bounded buffer. There are no optional fields and
 no defaults: a response missing `title`, missing `text`, or carrying an empty string for either is a
 failed run, per [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks". Unknown extra
 members are ignored, so a backend may return more without breaking anything.
@@ -113,3 +115,120 @@ curl -sS -X POST "$URL" \
 
 **Breaking a clause is a decision**, recorded and coordinated before it ships — never an edit to this
 file on its own.
+
+## Push delivery
+
+The same configured URL, authentication header, redirect policy and connection/read timeouts apply.
+The URL accepts both operations below and returns **204 with no body** on success. A 200 polling
+response is not a successful registration. Registration/removal each retry up to five attempts
+using WorkManager exponential backoff; polling still makes one attempt per scheduled run.
+
+### Register or update a subscription
+
+```json
+{
+  "operation": "register_push",
+  "subscription_id": "a-unique-watcher-id",
+  "installation_id": "the-phone-firebase-installation-id",
+  "firebase_project_id": "the-users-target-project",
+  "watcher": "Kotlin tips",
+  "max_length": 80,
+  "title_max_length": 32,
+  "expires_after_seconds": 3,
+  "client": "Glance"
+}
+```
+
+Upsert by `subscription_id`. Update the installation ID and all settings when registration repeats;
+several watchers may share one installation. `firebase_project_id` identifies the user-imported
+target project and was added in 1.1; backends should tolerate additional request fields. The backend decides when to send; no polling interval
+is sent. Glance registers on save, app opening and SDK address changes. A successful response means
+registration was accepted, not that notification delivery is confirmed.
+
+### Send content
+
+Authenticate your backend to the app's Firebase project using a service account or Application
+Default Credentials with FCM sending permission. These credentials never belong in the APK, the
+watcher's Credential field, source control or a registration response. The watcher's credential is
+only for authenticating Glance to your own backend. All configured push backends are trusted senders.
+
+Send through the `firebase_project_id` received during registration. A service account from another
+project works after the user grants it FCM sending permission on this target project. Do not assume
+the target project is the one that issued the backend key. On a backend serving multiple users,
+validate allowed target projects against your authenticated account configuration. The app sends no
+Android API key or service-account key. See [authorization](https://firebase.google.com/docs/cloud-messaging/send/v1-api#authorize_a_service_account_from_a_different_project).
+
+Send to `POST https://fcm.googleapis.com/v1/projects/PROJECT_ID/messages:send`:
+
+```json
+{
+  "message": {
+    "fid": "the-installation_id-from-registration",
+    "data": {
+      "subscription_id": "the-subscription_id-from-registration",
+      "title": "Kotlin",
+      "text": "Your build finished."
+    },
+    "android": { "priority": "HIGH", "ttl": "30s" }
+  }
+}
+```
+
+Use **data only**: do not include a `notification` object or use Firebase's notification composer.
+Those messages can be displayed by the SDK in the background, bypassing Glance's validation and
+expiry. The installation address uses the current FCM `fid` field. Payload data values are strings.
+`title` and `text` obey the same validation as polling, including UTF-16 code-unit length as counted
+by Kotlin. FCM also limits message size; the example sender checks it before transmission.
+
+The 30-second queue TTL above is an example, chosen by the backend, not a polling delay or the
+notification's display duration. Use HIGH for time-sensitive visible content and NORMAL for other
+updates; high-priority delivery is still best-effort. Unknown or retired subscription IDs are ignored.
+There is no delivery history, replay recovery or exactly-once guarantee. A missing-message callback
+produces a failure notice rather than claiming the messages arrived.
+
+### Remove a subscription
+
+```json
+{"operation":"unregister_push","subscription_id":"the-old-subscription-id","client":"Glance"}
+```
+
+Removal is idempotent: return 204 even if already removed. Keep a tombstone and reject later
+registration for the retired ID, since an old network request could arrive after removal.
+Glance retires the old ID when the watcher is deleted or its URL, credential, delivery mode or imported Firebase configuration changes.
+It stops routing the old ID immediately, then attempts backend removal. If removal exhausts its
+retries, the app discards the retained removal credential; clean up that backend record separately. Removing a watcher does not revoke other watchers.
+
+Reference implementation and local tests: [`../examples/test-backend/README.md`](../examples/test-backend/README.md).
+Protocol references: [FCM message format](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages),
+[Android receipt](https://firebase.google.com/docs/cloud-messaging/android/receive-messages),
+and [priority](https://firebase.google.com/docs/cloud-messaging/android-message-priority).
+## Connection QR v1
+
+Even-PIlot desktop's **Connect phone · QR** supplies a URL of this form:
+
+```text
+http://<host>:<port>/#pilot-pair=1&pilot-token=<form-encoded-connection-key>
+```
+
+Glance and Even Hub use the same QR and backend key. This is a local configuration input only;
+it changes none of the polling, `register_push`, FID, Firebase authorization or FCM message contracts.
+
+- Accept HTTP/HTTPS with a host, valid port, no user-info, no query and only an empty or `/` root path.
+  Accept bracketed IPv6 and HTTPS domains. Read the entire origin from the QR; no deployment address is embedded.
+- Parse the **raw fragment**, splitting parameters before decoding. Decode names/values exactly once
+  as UTF-8 form data: `+` becomes space and `%2B` becomes `+`. Require one `pilot-pair=1` and one
+  `pilot-token`; reject duplicate parameter names, missing fields and other versions. Unknown single
+  parameters are ignored. Malformed URL/percent syntax and raw input over 8,192 UTF-16 units are refused.
+- Require a key of 24–512 UTF-16 units without CR/LF; preserve whitespace and percent characters.
+  The existing HTTP credential validation still requires printable ASCII before Save, without changing
+  the key or silently encoding it a second time.
+- Build the registration URL from the normalized origin plus `/api/glance`. Put the decoded key in
+  Credential; the existing HTTP layer adds `Authorization: Bearer `. The key never enters a request URL.
+- New scans use PUSH, an available `Even-PIlot` name, max length 80, title limit 32 and expiry 30 seconds.
+  Editing an existing watcher retains its name and notification preferences. Duplicate endpoints offer
+  explicit updates rather than another registration. Successful save still requires backend HTTP 204.
+
+`PairingConnectionTest` covers parsing, encoding, validation and single-result/cancellation guards.
+`PairingFlowTest` covers preferences, duplicate matching, identity reuse, draft restoration, generated QR
+pixels through decoding into a saved-format watcher and loopback registration, plus 401/403 and offline failures.
+Real camera/permission dialogs and Firebase/G2 delivery require device verification; see [`STATUS.md`](STATUS.md).

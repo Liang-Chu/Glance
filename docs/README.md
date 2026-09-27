@@ -1,67 +1,34 @@
 # Documentation index
 
-The only entrance. Every live document is linked from here.
+Read the current design and verification status before changing behavior.
 
-## Read first
-
-1. **[`DESIGN.md`](DESIGN.md)** — current design, decisions only, the source of truth.
-   Grep its decision index before designing anything.
-2. **[`STATUS.md`](STATUS.md)** — what is true right now: what exists, what runs.
-3. **[`PROCESS.md`](PROCESS.md)** — how work is done today: run, deploy, release, review.
-4. **[`CONTRACT.md`](CONTRACT.md)** — the shape of the call to your backend. Read this before
-   writing one.
-5. **[`BACKLOG.md`](BACKLOG.md)** — the only list of open work.
-
-## The map
-
-Every slot is listed, including the ones with no file yet. Nothing is created outside this table: a
-thing that fits no slot means the map is short one, which is a decision. A `reserved` slot has no
-file — its path is where the file will go when the trigger in the last column fires, and reserved
-paths are written plainly here rather than linked, because there is nothing to link to.
-
-| Slot | Path | Holds | State |
-| --- | --- | --- | --- |
-| `ROOT_README` | [`../README.md`](../README.md) | what the project is, for someone who has never seen it; not the map | active |
-| `AGENT_ENTRY` | [`../CLAUDE.md`](../CLAUDE.md) | the instruction to read this file before touching anything, and the obligations that hold without being asked | active |
-| `ENTRY` | `docs/README.md` (this file) | the only entrance to the docs; the slot map, the authority order, the lifecycle rule | active |
-| `ORIENTATION` | [`ORIENTATION.md`](ORIENTATION.md) | the shape of the codebase: which directory holds what, which way dependencies point | active |
-| `DESIGN` | [`DESIGN.md`](DESIGN.md) | current design — decisions only | active |
-| `PROCESS` | [`PROCESS.md`](PROCESS.md) | how work is done today: run, deploy, release, review | active |
-| `STATUS` | [`STATUS.md`](STATUS.md) | what is true right now: what exists, what runs, what stage each piece is at | active |
-| `BACKLOG` | [`BACKLOG.md`](BACKLOG.md) | work not started yet, and nothing else | active |
-| `CONSTRAINTS` | [`CONSTRAINTS.md`](CONSTRAINTS.md) | constraints, negative space, lessons | active |
-| `PREFERENCES` | `docs/PREFERENCES.md` | project-specific overrides and standing instructions | reserved — first override of a docs-and-constraints default, or first standing instruction |
-| `DECISIONS` | `docs/decisions/NNNN-slug.md` | ADRs — append-only, never retired | reserved — first "we should have written down why" |
-| `RETIRED` | `docs/retired/` + `INDEX.md` | superseded design, finished plans, dead process, evidence | reserved — first doc goes stale |
-| `REFERENCE` | [`reference/g2-notifications.md`](reference/g2-notifications.md) | facts about things we do not control: the G2, its companion app, Android's notification behaviour | active |
-| `CONTRACT` | [`CONTRACT.md`](CONTRACT.md) | the shape of the call between this app and the backend the user runs | active |
-| `GLOSSARY` | `docs/GLOSSARY.md` | the closed vocabulary: one definition per term | reserved — first term used with two meanings in one week |
-| `MEASUREMENTS` | `docs/measurements/<campaign>-<date>/` | raw data behind any number a decision rests on, plus that campaign's write-up | reserved — first decision backed by numbers |
-| `REPORT` | `docs/REPORT.md` | the latest snapshot — an audit, a nightly run, a review result. Never authority | reserved — first audit or run whose output someone will re-read |
-| `WIP` | `docs/WIP.md` | the working material of what is being worked on right now | reserved — first design that takes more than one sitting to settle |
-| `PARKED` | `docs/PARKED.md` | complete but unwired components | reserved — first near-miss deleting live code |
-| `SHIPPED` | `docs/SHIPPED.md` | append-only record of what was delivered and when | reserved — first time git log cannot answer "what changed between these two dates" |
-| `NEGATIVE_SPACE` | a section inside [`CONSTRAINTS.md`](CONSTRAINTS.md) | what is deliberately not done, and why | reserved — first "we discussed this, we are not doing it" |
-| `LESSONS` | a section inside [`CONSTRAINTS.md`](CONSTRAINTS.md) | mistakes worth their own entry, each with its cost | reserved — first mistake worth its own entry |
-| `SRC` | `app/src/` | source root — not a doc slot; the path the checks read | not a doc slot |
+| Document | Purpose |
+| --- | --- |
+| [Project README](../README.md) | Install, setup and backend quickstart |
+| [DESIGN.md](DESIGN.md) | Current decisions and acceptance criteria; search its decision index first |
+| [CONTRACT.md](CONTRACT.md) | Backend request, response, push and QR formats |
+| [PROCESS.md](PROCESS.md) | Build, signing, setup, verification and contribution steps |
+| [STATUS.md](STATUS.md) | Observed behavior and local verification evidence |
+| [BACKLOG.md](BACKLOG.md) | The only list of open work |
+| [ORIENTATION.md](ORIENTATION.md) | Source layout and entry points |
+| [CONSTRAINTS.md](CONSTRAINTS.md) | Engineering gates and their checks |
+| [G2 reference](reference/g2-notifications.md) | Device behavior observed outside this app |
+| [Backend examples](../examples/test-backend/README.md) | Running the sample endpoints and FCM sender |
+| [Agent entry](../CLAUDE.md) | Repository instructions for coding agents |
 
 ## Precedence
 
-Every document inherits its slot's rank:
-
-CONSTRAINTS → DECISIONS → DESIGN → CONTRACT → REFERENCE → PROCESS → STATUS → code
-
-`WIP` and `REPORT` are deliberately absent: neither is authority, ever.
-
-Code never overrules a document; code that contradicts one is a bug or an unrecorded decision, and
-one of the two is fixed in that commit. A conflict inside one slot gets a tiebreak stated where it
-applies.
+CONSTRAINTS → DESIGN → CONTRACT → REFERENCE → PROCESS → STATUS → code.
+Keep code and its owning document consistent in the same change. User instructions take precedence.
 
 ## Lifecycle
 
-1. A live doc contains only open, currently-true content.
-2. Before retiring, move surviving items into [`BACKLOG.md`](BACKLOG.md).
-3. Retire with `git mv` into `docs/retired/<kind>/`, add one row to `docs/retired/INDEX.md` (why +
-   where the live truth is), fix inbound links in the same commit.
-4. Live docs link only to `docs/retired/INDEX.md`, never into it.
-5. ADRs are never retired; they take supersession notes.
+- Keep only current, useful content. Git history preserves superseded material.
+- Update an existing document before creating another. Add new documents to this index only when
+  they have a distinct purpose; do not create empty templates, plans or status reports.
+- Before deleting a document, move any surviving open work to BACKLOG and fix all inbound links.
+- Keep release binaries, private configuration, logs and temporary notes under ignored `local/`,
+  or outside the repository. Release descriptions belong on GitHub, not in another permanent MD file.
+- `docs/PARKED.md` is reserved only for a confirmed complete-but-unwired component under C8.
+  Create it through PROCESS's "Activate a reserved slot" procedure if that case actually occurs.
+- Run `bash tools/check-docs.sh` after documentation cleanup.

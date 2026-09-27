@@ -20,5 +20,8 @@ class UrlValidationTest {
         assertFalse("no host", isUsableUrl("http:///glance"))
         assertFalse("wrong scheme", isUsableUrl("ftp://example.com/glance"))
         assertFalse("not a url", isUsableUrl("this is not a url"))
+        assertFalse("embedded credential", isUsableUrl("https://secret@example.com/glance"))
+        assertFalse("fragment is not sent", isUsableUrl("https://example.com/glance#ignored"))
+        assertFalse("invalid port", isUsableUrl("https://example.com:99999/glance"))
     }
 }

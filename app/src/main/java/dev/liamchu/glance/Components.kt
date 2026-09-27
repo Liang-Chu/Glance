@@ -1,5 +1,6 @@
 package dev.liamchu.glance
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -19,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import java.net.URI
 import java.net.URISyntaxException
@@ -63,6 +68,8 @@ fun Field(
             shape = RectangleShape,
             textStyle = MaterialTheme.typography.bodyMedium,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+            visualTransformation = if (keyboard == KeyboardType.Password) PasswordVisualTransformation()
+                else VisualTransformation.None,
             colors = fieldColours(),
         )
     }
@@ -108,7 +115,7 @@ fun NumberCell(
 }
 
 @Composable
-fun fieldColours() = OutlinedTextFieldDefaults.colors(
+private fun fieldColours() = OutlinedTextFieldDefaults.colors(
     focusedTextColor = GlanceWhite,
     unfocusedTextColor = GlanceWhite,
     focusedBorderColor = GlanceWhite,
@@ -142,4 +149,37 @@ fun Watcher.hostLabel(): String {
         null
     }
     return host ?: "NO URL"
+}
+
+@Composable
+fun Filled(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp),
+        shape = RectangleShape,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = GlanceWhite,
+            contentColor = GlanceBlack,
+        ),
+        onClick = onClick,
+        enabled = enabled,
+    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
+}
+
+@Composable
+fun Outlined(label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    Button(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp),
+        shape = RectangleShape,
+        border = BorderStroke(1.dp, GlanceWhite),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = GlanceBlack,
+            contentColor = GlanceWhite,
+        ),
+        onClick = onClick,
+        enabled = enabled,
+    ) { Text(label, style = MaterialTheme.typography.labelLarge) }
 }

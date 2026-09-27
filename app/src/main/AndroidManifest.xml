@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <!--
       allowBackup is off so the credential cannot leave the device in a cloud
@@ -13,6 +18,7 @@
       their own network with no certificate (criterion settings-7).
     -->
     <application
+        android:name=".GlanceApplication"
         android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,10 +28,27 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Glance">
 
+        <!-- Configuration comes from the user's local import, never APK resources. -->
+        <provider android:name="com.google.firebase.provider.FirebaseInitProvider"
+            android:authorities="${applicationId}.firebaseinitprovider" tools:node="remove" />
+
+        <!-- We embed the preview; no external capture activity or image files are used. -->
+        <activity android:name="com.journeyapps.barcodescanner.CaptureActivity" tools:node="remove" />
+
+        <!-- Enable registration only after the user saves a push watcher. -->
+        <meta-data android:name="firebase_messaging_auto_init_enabled" android:value="false" />
+        <meta-data android:name="firebase_messaging_installation_id_enabled" android:value="true" />
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <meta-data android:name="firebase_messaging_notification_delegation_enabled" android:value="false" />
+        <service android:name=".GlanceMessagingService" android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

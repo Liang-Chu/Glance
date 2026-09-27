@@ -17,9 +17,15 @@
 | What is the exact shape of the call to the backend? | **[`CONTRACT.md`](CONTRACT.md)** |
 | What happens to a response longer than the length setting? | **[`CONTRACT.md`](CONTRACT.md) "Responses"** (owner, 2026-09-10: a breach, not something to trim) |
 | What can the user change? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** (owner, 2026-09-10) |
+| Can an Even-PIlot connection QR fill a watcher? | **[`DESIGN.md`](DESIGN.md) "Scan a backend connection"** (owner, 2026-09-26) |
+| Which delivery mode does a new watcher start with? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** (owner, 2026-09-25) |
 | Does a plain `http` backend work, and what does it cost? | **[`DESIGN.md`](DESIGN.md) "What the user can change"** |
 | What does the user see when a run fails? | **[`DESIGN.md`](DESIGN.md) "What a failed run shows"** (owner, 2026-09-10) |
+| How can the user find out why Glance crashed or stopped delivering? | **[`DESIGN.md`](DESIGN.md) "Local diagnostics"** (owner, 2026-09-25) |
 | What is the app written in, and what runs the interval? | **[`DESIGN.md`](DESIGN.md) "The stack"** |
+| Who supplies Firebase configuration, and can a backend use its own service account? | **[`DESIGN.md`](DESIGN.md) "User-owned Firebase setup"** (owner, 2026-09-25) |
+| How does the user know Firebase configuration was imported? | **[`DESIGN.md`](DESIGN.md) "User-owned Firebase setup"** (owner, 2026-09-26) |
+| Can a backend push content immediately, and does this require Firebase? | **[`DESIGN.md`](DESIGN.md) "Push delivery"** (owner, 2026-09-25) |
 | Can there be more than one watcher, and what do they share? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** (owner, 2026-09-10: "allow the user setup multiple notification watcher") |
 | What identifies a watcher — its name, or something else? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** |
 | Does the backend learn which watcher is asking? | **[`DESIGN.md`](DESIGN.md) "Many watchers, each named"** |
@@ -29,35 +35,13 @@ Grep the whole file before concluding a question is undecided.
 
 ## 1 · Purpose and delivery path
 
-> **Prerequisites**: none.
-> **Decides**: what this software is, and the route its notifications take to the glasses.
+Glance is an Android client that posts backend-authored notifications. The Even Realities app
+forwards them to G2 glasses through its existing notification feature. Glance does not pair with,
+scan for, or speak a transport protocol to the glasses.
 
-Recorded from the owner, 2026-09-10, verbatim: *"Eventually this is a android app that send some
-concise notification which expire automatically."* and *"My goal is to use that to push notification
-to Even G2 automatically using their notification feature."*
-
-This is an **Android application**. What it produces is Android notifications, and each one **stops
-being displayed after a bounded lifetime without anybody dismissing it**. Where their text comes from
-is [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
-
-Those notifications reach the **Even G2** glasses through **the G2's own notification feature** — the
-path that already carries phone notifications to the glasses. This project therefore builds **no
-transport of its own to the glasses**: it does not pair with them, scan for them, or speak a link
-protocol to them. Seen from this repository, the glasses are one more consumer of ordinary Android
-notifications, and the app's job ends when Android accepts the notification.
-
-**Why it expires**, recorded from the owner, 2026-09-10, verbatim: *"the reason i want to cancel it
-is cause i dont want the user have to deal with the notification on the phone again"*. The expiry
-exists to keep the phone's notification shade clear, not to control the glasses. What the glasses do
-with a withdrawal is therefore interesting but not load-bearing: this requirement is satisfied on the
-phone whatever they do.
-
-The lifetime is carried **on the notification itself**, so Android clears it whether or not this app
-is running. Nothing schedules a cancellation, and no component has to survive to do the clearing.
-
-**The app runs without being opened.** The owner, 2026-09-10: *"It should able to run in the
-background silencly."* Once the settings are filled in, the app has no reason to be launched again,
-and nothing it does requires a screen.
+Content expiry is carried on the Android notification itself, keeping the phone shade clear even
+when Glance is no longer running. It does not control how the glasses handle withdrawal.
+Configured watchers deliver in the background without keeping a foreground service alive.
 
 ### Acceptance
 
@@ -71,113 +55,62 @@ and nothing it does requires a screen.
 
 ## 2 · Where a notification's content comes from
 
-> **Prerequisites**: none.
-> **Decides**: what produces the text of a notification, and what this app is responsible for.
+Each watcher either polls a user-owned backend or registers with it for FCM push. Wire formats
+belong to [CONTRACT.md](CONTRACT.md). Content generation, topics, prompts, model choice and repeat
+suppression belong to the backend. Glance keeps no content history or response cache.
 
-Recorded from the owner, 2026-09-10, verbatim: *"it eventually just something accept some backend
-input and make them a notification that will expire"*, *"i expect the user build the backend
-themselves"*, and *"i dont want to host a server for this one"*.
-
-**The app is a client and nothing else.** On an interval the user sets, it calls **one backend the
-user runs**, at a URL and with a credential the user supplied, and turns the response into a
-notification that expires. It does not decide what the notification says. The exact shape of that
-call is [`CONTRACT.md`](CONTRACT.md).
-
-~~The app chose a keyword, asked an LLM for something in that field, and remembered what it had
-already posted so as not to repeat itself.~~ → **all content generation is ruled out of the app**
-(owner, 2026-09-10: *"You can define how the api gonna looks like since i expect the user build the
-backend themselves"*). Topic selection, prompts, model choice, and repeat suppression are the
-backend's concern and are absent here. **The app keeps no state beyond its settings** — a run reads
-settings, makes one call, and posts or does not post.
-
-**No service this app calls belongs to this project.** It runs no server, holds no API key, and pays
-for no account. A fresh install talks to nothing until the user gives it a URL.
+There is no Glance-operated server, shared account or embedded Firebase project. Users import their
+own Android client configuration on the phone. Sending credentials stay on their backends.
 
 ### Acceptance
 
-- `content-1` The repository contains no API key, no endpoint this project operates, and no account
-  this project pays for. A fresh install with no URL configured makes no network call.
-- `content-2` The only host the app contacts is the one in the user's configured URL.
-- `content-3` The source contains no prompt, no model name, no topic list, and no vendor name.
-- `content-4` The app stores nothing between runs except its settings: no history of what it posted,
-  no cache of responses.
+- `content-1` No Firebase service-account key or backend credential is committed or embedded in the
+  APK. No Firebase project or Android API key is embedded either. A fresh install does not register
+  with FCM until the user imports client configuration and saves a push watcher.
+- `content-2` Content polling contacts only the configured backend. Push registration additionally
+  uses Firebase infrastructure; this dependency is documented before setup.
+- `content-3` The app contains no prompts, model selection, or topic selection.
+- `content-4` No content history or response cache exists. Watcher registration metadata lives in
+  DataStore; WorkManager and Firebase also keep their own delivery state.
 - `content-5` When the backend cannot be reached or breaks [`CONTRACT.md`](CONTRACT.md), the app
-  posts no notification and writes no substitute text.
+  posts no content notification and writes no substitute content.
 
-Retired: tip-source-1 … tip-source-11 (the app stopped generating content, 2026-09-10).
 
 ## 3 · What the user can change
 
-> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
-> **Decides**: the complete set of settings, and that there is nothing else to configure.
-
-Recorded from the owner, 2026-09-10, verbatim: *"the backend credential and url, expiration and check
-frequency and notification max length should be editable and thats it"*.
-
-~~These settings belonged to the app as a whole, and there was exactly one of each.~~ → **they belong
-to a watcher, and there may be many** (owner, 2026-09-10: *"allow the user setup multiple
-notification watcher"*). What follows describes one watcher; how many there are is
-[`DESIGN.md`](DESIGN.md) "Many watchers, each named".
-
-Six settings per watcher, and **that list is closed** — anything a later version wants to vary is a
-decision recorded here, not a field quietly added to a screen.
+Settings belong to individual watchers; see "Many watchers, each named".
 
 | Setting | Unit | Starting value |
 | --- | --- | --- |
-| Name | free text, required | empty — a watcher without one cannot be saved |
-| Backend URL | absolute `http` or `https` URL | empty — the app does nothing until it is set |
-| Credential | opaque string, may be left empty | empty |
-| Check every | days + hours + minutes, added together; at least 15 minutes in total | 1 day |
-| Expires after | minutes + seconds, added together; at least 3 seconds in total | 3 seconds |
-| Maximum length | characters | 80 |
+| Name | required, unique ignoring case and surrounding whitespace | empty |
+| Delivery | PUSH or POLL | PUSH; saved records retain their mode |
+| Backend URL | absolute HTTP(S), no user-info, fragments or invalid ports | empty |
+| Credential | optional printable ASCII, masked | empty |
+| Check every | POLL only; days + hours + minutes, at least 15 minutes | 1 day |
+| Expires after | minutes + seconds, at least 3 seconds | 3 seconds |
+| Maximum length | characters, positive integer | 80 |
 
-**Three seconds is the floor on the expiry**, and it is a floor rather than a preference: the
-listener that feeds the glasses is handed a notification when it is posted, and a lifetime measured
-in milliseconds gambles on winning that race. Three seconds is short enough to be gone before anyone
-looks at the phone and long enough that the glasses have certainly been given it.
+Empty duration boxes count as zero. Reject intervals under WorkManager's 15-minute floor instead
+of silently rounding them. Reject expiry under three seconds, including zero (Android interprets
+zero as no timeout). The 80-character default is below the observed G2 display length; it does not
+claim a measured maximum.
 
-A duration is a box per unit, added together, and an empty box counts as zero — so most durations are
-one number typed in one box.
+Plain HTTP is supported for private networks; credentials travel in cleartext over HTTP, so users
+should choose HTTPS across untrusted networks. Credentials and imported client configuration stay
+in app-private storage, excluded from backup and logs.
 
-**The interval has a floor, and it is refused rather than clamped.** WorkManager will not repeat work
-more often than every fifteen minutes; asked for less it silently rounds up. The settings screen
-therefore refuses anything below fifteen minutes outright, because a user who typed "every 5 minutes"
-and was quietly given twenty would have no way to learn that. Rounding it here would also be the
-derivation [`CONSTRAINTS.md`](CONSTRAINTS.md) "C5 — Independent axes stay independent" forbids: a
-check that replaces the value it checks.
-
-**An expiry of zero means gone from the phone at once**, recorded from the owner, 2026-09-10:
-*"when i set to 0 which means it only need to be visible on the glasses and will instantly gone on
-the phone"*. The glasses are fed by a notification listener, which is told when a notification is
-**posted**; clearing it a moment later is meant to leave the glasses' copy alone. Zero cannot be
-handed to the platform as zero — Android reads a timeout of `0` as *no timeout at all*, the exact
-opposite — so it becomes the smallest positive lifetime instead. **Whether the glasses still receive
-one that brief is unverified and needs the hardware**, tracked in [`BACKLOG.md`](BACKLOG.md).
-
-**Plain `http` has to work.** The backend belongs to the user and is commonly a machine on their
-own network with no certificate. Android blocks cleartext from targetSdk 28 onwards, so the app opts
-back in — otherwise the `http` this screen accepts would fail at the moment it was used, which is
-precisely the split between "refused where it is typed" and "broken where it is used" that criterion
-`settings-3` exists to close. The cost is real and belongs to the user: over `http` the credential
-crosses the network in the clear, so anything outside a network they trust should be `https`.
-
-**The credential stays on the device.** It lives in the app's private storage like every other
-setting, the app opts out of Android backup so it is not carried off to a cloud account, and nothing
-writes it to a log. There is no separate secret store: on a device that is not rooted, app-private
-storage is the boundary, and pretending otherwise would be ceremony rather than protection.
-
-The starting values are what a new watcher holds before the user touches anything, and each is
-written in one place. They start where a watcher is least likely to annoy: **once a day**, gone from
-the phone in **three seconds**, and **80 characters** — comfortably inside the 86 that have actually
-been read on the glasses, so a default watcher cannot produce something too long to read. The real
-ceiling is still unmeasured and tracked in [`BACKLOG.md`](BACKLOG.md).
+New watchers default to PUSH (owner, 2026-09-25). Pre-push saved records still load as POLL so an
+upgrade cannot silently change their behavior. Scan-specific defaults are in "Scan a backend connection".
 
 ### Acceptance
 
-- `settings-1` The settings screen offers exactly these five fields and no others.
-- `settings-2` Each starting value appears in exactly one place in the source.
+- `settings-1` The editor offers the settings in the table; push hides the polling interval and
+  offers Save and register instead of Save and check now. Firebase setup is a separate guided page.
+- `settings-2` Each starting value appears in exactly one place in the source. A new watcher opens
+  in push mode; reopening a saved watcher preserves its mode.
 - `settings-3` A URL that is not an absolute `http` or `https` URL is refused when it is entered, not
-  at the moment a run tries to use it.
+  at the moment a run tries to use it. URLs with user-info, fragments or invalid ports are refused;
+  credentials must be printable ASCII and are masked in the editor.
 - `settings-4` Changing the check frequency changes the interval of the next scheduled run without
   the app being reinstalled.
 - `settings-5` The credential is held in the app's private storage, and the app opts out of Android
@@ -186,7 +119,7 @@ ceiling is still unmeasured and tracked in [`BACKLOG.md`](BACKLOG.md).
   notification.
 - `settings-7` A backend reached over plain `http` works on a current Android release. Nothing the
   settings screen accepts fails later for being cleartext.
-- `settings-8` An interval below fifteen minutes is refused when it is entered, in every unit, and
+- `settings-8` A polling interval below fifteen minutes is refused when entered, in every unit, and
   no code path rounds one up.
 - `settings-9` An expiry totalling under three seconds is refused when it is entered. No expiry ever
   reaches the platform as zero, which it would read as "no expiry at all".
@@ -197,78 +130,49 @@ ceiling is still unmeasured and tracked in [`BACKLOG.md`](BACKLOG.md).
 
 ## 4 · What a failed run shows
 
-> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Where a notification's content comes from".
-> **Decides**: what the user sees when the backend cannot be reached or breaks the contract.
+Each watcher reports the first failure with a separate notification, then stays quiet until
+successful content delivery or registration clears its failure state and notice. Failure notices
+remain until cleared or dismissed; they contain fixed reasons, never backend response bodies.
 
-A backend this project does not run can be unreachable for ordinary reasons — one on the user's home
-network is simply absent when the phone is on mobile data. That is the expected case, not an
-exceptional one.
-
-The app **tells the user once**. On the first failed run it posts a notification saying the run failed
-and why; it stays quiet through every further failure, and becomes able to speak again only after a
-run has succeeded. Silence would let the app stay broken for days unnoticed; a notification per
-attempt would nag all day on mobile data.
-
-That notification is **not content and does not look like it**. It carries no text from the backend's
-response body, because [`CONSTRAINTS.md`](CONSTRAINTS.md) "C1 — Fail fast; no fallbacks" is what makes
-the run fail in the first place — dressing the failure in the response would smuggle back exactly the
-substitute the constraint exists to prevent.
-
-**A backend with nothing to say is not a failure.** [`CONTRACT.md`](CONTRACT.md) gives it a way to say
-so, and a run that ends that way posts nothing, stays silent, and leaves the failure state untouched.
+A backend returning HTTP 204 for polling has nothing to say: it neither posts content nor changes
+failure state. Delivery and state changes are serialized with watcher edits/deletion so a stale
+result cannot revive a deleted watcher or affect a replacement configuration.
 
 ### Acceptance
 
 - `failure-1` Consecutive failed runs produce one notification between them, not one each; the app
-  regains its voice only after a run succeeds.
+  regains its voice only after a run succeeds. Successful content/registration clears its old failure
+  notice; stale configurations cannot update state or post notifications.
 - `failure-2` A failure notification carries no text originating from the backend's response body.
 - `failure-3` A run in which the backend reports it has nothing to say posts nothing, and neither
   raises nor clears the failure state.
 
 ## 5 · The stack
 
-> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "Purpose and delivery path".
-> **Decides**: what the app is written in, and what makes the interval survive Android.
+Kotlin and Jetpack Compose provide the UI; DataStore holds settings; WorkManager handles polling
+and bounded push registration/removal retries. Minimum SDK 26 provides notification expiry; compile
+and target SDK are 37. AGP supplies Kotlin support; do not add the legacy Android Kotlin plugin.
 
-**Kotlin, Jetpack Compose for the settings screen, WorkManager for the interval, DataStore for the
-settings.** Minimum SDK **26**, because the notification carries its own lifetime and that arrived
-there; compile and target **37**, which is the floor the current androidx libraries impose rather
-than a level anything here asks for. Kotlin is not a separate Gradle plugin: the Android plugin
-carries it from version 9, and adding the old one is an error.
+WorkManager persists polling across reboot and may defer it in Doze. It does not guarantee exact
+timing. FCM delivers content without a network fetch in its callback. There is no alarm loop,
+foreground service or app content database; Firebase and WorkManager maintain their own state.
 
-**WorkManager is the load-bearing choice.** A repeating background job survives Doze only when the
-operating system is the thing scheduling it, and WorkManager is the API that exists for that. A
-hand-rolled alarm loop, a long-lived foreground service, or a shell cron all fight power management
-and lose, which is why the automation tools that do this today are unreliable at it. Its floor is
-fifteen minutes, and the interval can be set in minutes, so the floor is now reachable — the settings
-screen refuses anything under it rather than letting WorkManager round it up without saying so.
-
-There is **no database**. The app keeps nothing between runs but its settings, so DataStore is the
-whole of its storage.
+Startup cancels the old single-watcher jobs named `glance-poll` and `glance-now`. They carry no
+watcher ID and can only wake up without doing useful work. Current per-watcher schedules are kept.
 
 ### Acceptance
 
-- `stack-1` The app schedules its repeating work through WorkManager, and no alarm loop or long-lived
-  service exists to do it instead.
-- `stack-2` The app declares no database and no persistent store other than the settings.
+- `stack-1` Polling uses WorkManager; push uses FirebaseMessagingService with no network fetch in its
+  message callback. No alarm loop or long-lived service exists.
+- `stack-2` The app declares no content database; registration metadata lives with watcher settings.
 - `stack-3` A release build installs and runs on a device at minimum SDK 26.
+- `stack-4` Startup cancels obsolete id-less work without cancelling current per-watcher jobs.
 
 ## 6 · How it looks
 
-> **Prerequisites**: none.
-> **Decides**: the visual language of the settings screen and of the icon.
-
-Recorded from the owner, 2026-09-10, verbatim: *"update the UI a bit. make it even app style of
-black - white - gray pixil style"*.
-
-**Black, white and grey, and no other colour anywhere** — including for errors and warnings, which
-are told apart by **inverting to black-on-white** rather than by hue. Every text style is monospaced,
-every corner is square, and the icon is whole blocks rather than curves.
-
-The reason is the destination. What this app produces is read on a monochrome head-up display, so a
-settings screen in the same register is honest about the medium; a colourful one would promise a
-richness the glasses cannot render. It also makes the constraint checkable: any hue in the source is
-a defect rather than a matter of taste.
+The owner's requested style is black, white and grey, monospaced type, square corners and a
+block-built icon. Errors use contrast rather than another hue. The window is black before Compose
+draws to avoid a white flash on launch.
 
 ### Acceptance
 
@@ -281,36 +185,17 @@ a defect rather than a matter of taste.
 
 ## 7 · Many watchers, each named
 
-> **Prerequisites**: [`DESIGN.md`](DESIGN.md) "What the user can change".
-> **Decides**: that there may be more than one watcher, and what they share.
+Watchers have independent settings, schedules, notification slots, failure state and subscription
+IDs. PUSH watchers share one Firebase installation. New saves require unique names; existing
+records are not renamed automatically.
 
-Recorded from the owner, 2026-09-10, verbatim: *"allow the user setup multiple notification watcher.
-they can name it. each one can have different backend source and parameter"*.
+Identity is an integer ID, never the editable name. Allocate IDs once and never reuse deleted IDs.
+Send the name to the backend so a single endpoint can serve different content for different watchers.
+Deleting one watcher cancels only its work and notifications.
 
-**A watcher is the unit.** It has a name and its own backend, credential, interval, expiry and length
-limit. **Two watchers share nothing but the code**: not a schedule, not a notification, not a failure.
-That is the whole content of this decision, and each half of it is a thing that would otherwise go
-quietly wrong:
-
-- **Its own notification slot.** A single slot would mean the second watcher to fire silently
-  replaced the first, and the first's content would be lost with no error anywhere.
-- **Its own failure state.** One unreachable backend must not silence the others — the rule in
-  [`DESIGN.md`](DESIGN.md) "What a failed run shows" is per watcher, so a failure notice names which
-  one, and a watcher that is working keeps working.
-- **Its own schedule.** Deleting a watcher cancels that watcher's work and clears its notifications;
-  nothing else notices.
-
-**Identity is an id, not a name.** Names are for the person and may be edited or repeated; the id is
-assigned once, never reissued after a deletion, and is what the schedule, the notification slot and
-the stored record are keyed by. Keying any of those on the name would move a watcher's identity every
-time it was renamed.
-
-**The name is sent to the backend**, so one backend can serve several watchers and answer differently
-for each — which is what makes several watchers pointing at one URL useful rather than redundant.
-
-**The app still has no database.** The watchers are one JSON array in one preference: a handful of
-watchers is settings however many of them there are, and
-[`DESIGN.md`](DESIGN.md) "The stack" is unchanged.
+DataStore also holds imported client configuration and retired push subscriptions awaiting removal.
+Retired credentials are kept only until removal succeeds or five attempts finish. WorkManager input
+carries the subscription ID, never the serialized credential-bearing watcher.
 
 ### Acceptance
 
@@ -325,3 +210,162 @@ watchers is settings however many of them there are, and
 - `watchers-6` The watcher's name reaches the backend in the request.
 - `watchers-7` Renaming a watcher changes no schedule and loses no state.
 - `watchers-8` The app declares no database; the watchers live in the settings store.
+
+## 8 · Push delivery
+
+PUSH is the default for new watchers. The backend receives an authenticated registration with
+the installation's FCM address, subscription ID, target Firebase project and notification limits.
+It sends data-only messages through that target project; Glance validates and posts their content.
+The Firebase and backend protocols remain those in [CONTRACT.md](CONTRACT.md).
+
+Use the SDK's `register()` and `onRegistered()` installation-ID APIs. Address changes, saves and app
+opening trigger registration. Registration and removal each allow five attempts with WorkManager
+backoff. Registration success proves backend acceptance, not end-to-end delivery.
+
+Save, delete and import run FCM auto-init updates on Dispatchers.IO: the SDK setter may internally
+wait for the installation ID. Resume the caller's dispatcher afterward and propagate cancellation
+or SDK failures. This prevents the main-thread wait found in the Samsung 1.3 crash export.
+
+Changing URL, credential, delivery mode or Firebase configuration rotates the subscription ID.
+Deletion or leaving PUSH immediately revokes the old ID locally and queues best-effort removal.
+Backends must tombstone retired IDs against late registration; unreachable ones may retain unused IDs.
+
+FCM is best-effort, not exactly-once. Connectivity, Play services, permissions and power management
+can affect delivery. High priority is for time-sensitive, visible messages. The backend chooses FCM
+queue TTL; watcher expiry starts when Glance posts the notification. There is no delivery history.
+
+### Acceptance
+
+- `push-1` New watchers start with push; saved delivery modes are preserved, including polling for
+  records from before push support. No push watcher schedules periodic content fetches. An unsaved
+  draft has no subscription and must not enqueue backend removal.
+- `push-2` Registration carries the current installation ID, target Firebase project ID, subscription ID,
+  name and limits, and
+  accepts only HTTP 204 as success. Backend credentials are never sent to Firebase.
+- `push-3` Missing, empty or oversized content is rejected using the same limits as polling.
+- `push-4` Messages for deleted, replaced or polling subscriptions post nothing.
+- `push-5` Data-only messages post through Notifier with watcher-specific expiry, without a network
+  request or detached background coroutine in the FCM callback.
+- `push-6` SDK address refresh triggers registration; its callback does not cause an endless loop.
+- `push-7` Builds without Firebase configuration support polling and refuse to save a push watcher
+  with an explicit import instruction. No client configuration or sending credentials are required to build.
+- `push-8` A real high-priority push reaches the phone and glasses while Glance is backgrounded;
+  it expires on the phone. This requires configured hardware verification, recorded in STATUS.md.
+- `push-9` Enabling/disabling auto-init after settings changes runs off the UI thread even when the
+  caller is a UI coroutine; unavailable Firebase is skipped and completion resumes the caller normally.
+
+## 9 · User-owned Firebase setup
+
+Users import `google-services.json` locally, including the project owner. No Firebase project
+or key is bundled in the APK. Save only the required Android client fields and reject service-account
+private keys. An installation uses one project; its watchers may connect to independent backends.
+
+A backend's own service account needs FCM sending permission in the user's target project. Cross-
+project authorization is an explicit, project-wide trust grant; it is not watcher-scoped IAM.
+
+The setup screen shows five numbered actions: create project, register Android app, import JSON,
+authorize backend, save watcher. Put same-project and cross-project backend details behind a help
+button, keeping server private keys off the phone. This follows the owner's 2026-09-26 request for
+short, step-by-step guidance.
+
+Confirm a completed import with a high-contrast dialog naming the saved project ID. Keep the project
+visible in a status panel on the setup screen. On the home screen, FIREBASE SETUP is white until a
+project is imported, then black with the saved project ID below the label. Allow the ID to wrap;
+never shorten it to a guessed display name. The file supplies the ID, so displaying it needs no
+extra network request. Loading is neutral; import errors stay beside the file button. Keep restart
+requirements explicit: imported configuration does not claim that a backend is registered or push
+delivery has been verified.
+
+First import works immediately. Reimporting the same file preserves subscriptions. Replacing the
+configuration requires confirmation and a process restart because SDK components retain their
+initialization options. Pause push until Force stop and reopen; polling continues independently.
+
+### Acceptance
+
+- `firebase-1` A clean checkout builds without client configuration, server credentials or signing keys.
+- `firebase-2` Import selects the exact Android package, validates all required fields and their
+  consistency, and rejects malformed files, server private keys and input over 256 KiB.
+- `firebase-3` App startup restores the imported project before FCM service callbacks run. No default
+  project is silently substituted when configuration is absent.
+- `firebase-4` Replacing configuration invalidates old subscription IDs and pauses push until restart;
+  all saved push watchers then register in the selected project. Polling settings remain intact.
+- `firebase-5` The app shows five numbered setup actions with expandable backend help explaining that a backend's own key needs
+  permission for the target project; it never requests that private key on the phone.
+- `firebase-6` Poll responses are bounded at 64 KiB, title/text must be JSON strings, credentials are
+  never logged, and large credentials cannot overflow WorkManager's input-data limit.
+- `firebase-7` A completed import opens a project-ID confirmation. Returning home or reopening the
+  app shows a black setup button with that saved ID; an unconfigured installation shows a white
+  setup button. Failed/cancelled imports preserve the previous project and do not report success.
+- `firebase-8` A replaced project is shown as saved but awaiting restart, without implying active push.
+
+## 10 · Local diagnostics
+
+Owner, 2026-09-25: *"有没有办法保存log起码下次出现我能指导为什么呢"*.
+
+Diagnostics are local, bounded and available from the home screen. Fixed event names, timestamps,
+local numeric watcher IDs, HTTP status codes and exception stack frames record startup, configuration,
+registration, polling and push delivery. Backend URLs, credentials, Firebase identifiers, watcher
+names, notification text and exception messages are never logged. The exception type, cause chain
+and source positions remain; messages and raw Android trace buffers are excluded for privacy.
+
+Install the uncaught-exception recorder before application initialization. Save the last JVM crash
+synchronously, then delegate to Android's original handler with the original exception. Worker
+exceptions are recorded and rethrown, preserving WorkManager's cancellation and failure behavior.
+Logging failure sets a visible diagnostic warning and must not replace a crash or break delivery.
+
+Keep two event files of at most 256 KiB each and one 64 KiB last-crash file in no-backup private
+storage. An atomic crash replacement may use another 64 KiB temporary file. Restart and clearing
+cache preserve records; uninstalling or clearing app data removes them. Normal event rotation never
+removes the last crash. Export uses Android's document picker and uploads nothing automatically.
+Clearing local logs leaves exported copies and Android's own exit history untouched.
+
+Exports include app version, Android version, device model and, on Android 11+, the last five process
+exit reasons provided by the OS. These can distinguish ANR/native crash/system termination without
+claiming a JVM stack always exists. Early failures, abrupt termination and exhausted storage or memory
+can prevent recording. Retain the exact release mapping alongside every distributed minified APK.
+
+### Acceptance
+
+- `diagnostics-1` Logs survive reopening and rotate within their size limits; the last crash survives rotation.
+- `diagnostics-2` Exceptions, their causes and suppressed exceptions export frames but no messages.
+- `diagnostics-3` The crash recorder delegates the original failure even when saving fails; workers rethrow failures/cancellation.
+- `diagnostics-4` DIAGNOSTICS offers export and clear without storage permission or automatic upload.
+- `diagnostics-5` Reports identify the app build and include available OS exit reasons without raw trace data.
+
+## 11 · Scan a backend connection
+
+Owner, 2026-09-26: *"使用 Even-PIlot 桌面现有的同一张二维码和同一个 key。不要写死 Tailscale
+地址，也不要修改 Firebase 或后端推送协议。"*
+
+New and existing watcher editors offer **SCAN CONNECTION QR**. A bundled ZXing decoder reads live
+camera frames on-device, without taking a photo or installing a scanner. Camera permission is requested
+only on entry; denial and camera failure provide retry, settings and cancel. The camera pauses when
+backgrounded and is released on exit. The scanner excludes its credential-bearing preview from screenshots.
+On Android 17+, the editor also offers local-network permission for direct LAN backends. Public internet
+endpoints remain usable without granting LAN access; denial keeps the permission/retry/settings guidance visible.
+
+The desktop's v1 URL is parsed by the rules in [`CONTRACT.md`](CONTRACT.md) "Connection QR v1".
+Recognition stops after one result. Valid input fills an unsaved PUSH draft and returns to the editor;
+invalid input shows a fixed error and a rescan option. Cancel, invalid codes and late frames never save
+or register anything. Drafts survive activity recreation. A single **SAVE AND REGISTER** writes private
+settings and queues the existing registration work, returning to the in-app list without finishing the activity.
+
+A new scanned watcher starts with an available `Even-PIlot` name (numeric suffix when needed), the
+ordinary length limit, and 30-second expiry. Subsequent scans retain draft preferences. Scanning an
+existing watcher preserves name, durations and length while replacing URL/credential and selecting PUSH.
+When a new draft matches an existing registration endpoint, even with a rotated key, the user chooses
+an existing watcher to update or cancels; no duplicate is silently created. Save checks again. Scanning
+the same connection and retrying registration retain the existing subscription ID.
+
+Registration uses the same Firebase installation and backend request. HTTP 401/403 explicitly identify a
+rejected key and suggest rescanning. Connection failures retain the watcher and its bounded retry path;
+the editor and list explain how to retry. No QR key enters logs, analytics, queries or error text.
+
+### Acceptance
+
+- `scan-1` Live camera recognition fills the editor once; cancellation and invalid input do not mutate saved watchers.
+- `scan-2` IPv4, HTTPS, bracketed IPv6 and ports come from the QR; form decoding happens once and duplicate parameters are refused.
+- `scan-3` New defaults and unique names are applied; existing preferences survive scans and duplicate connections require an explicit selection.
+- `scan-4` Save uses the current registration contract; retries/rescans retain identity and failures never delete the watcher.
+- `scan-5` Permission denial, unavailable camera, bad codes, unreachable backend and rejected credentials have visible recovery actions.
+- `scan-6` Camera preview stops on background/exit, produces no image files, and never exposes the QR/key in logs or screenshots.

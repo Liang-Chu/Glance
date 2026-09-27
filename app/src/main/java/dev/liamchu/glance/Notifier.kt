@@ -22,11 +22,14 @@ object Notifier {
      * notification — and a watcher's own next notification does replace its last,
      * which is what keeps the shade from filling up.
      */
-    private const val CONTENT_ID_BASE = 1_000
-    private const val FAILURE_ID_BASE = 500_000
+    private const val CONTENT_TAG = "content"
+    private const val FAILURE_TAG = "failure"
 
-    fun canPost(context: Context): Boolean =
-        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    fun canPost(context: Context): Boolean {
+        val manager = NotificationManagerCompat.from(context)
+        return manager.areNotificationsEnabled() &&
+            manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
+    }
 
     /**
      * The header line on the glasses is the app label — one per install, and not
@@ -46,7 +49,7 @@ object Notifier {
             .setTimeoutAfter(watcher.expiryMillis)
             .setAutoCancel(true)
             .build()
-        post(context, CONTENT_ID_BASE + watcher.id, notification)
+        post(context, CONTENT_TAG, watcher.id, notification)
     }
 
     /**
@@ -61,14 +64,18 @@ object Notifier {
             .setStyle(NotificationCompat.BigTextStyle().bigText(reason))
             .setAutoCancel(true)
             .build()
-        post(context, FAILURE_ID_BASE + watcher.id, notification)
+        post(context, FAILURE_TAG, watcher.id, notification)
     }
 
     /** A deleted watcher must not leave its notifications behind. */
     fun clear(context: Context, watcherId: Int) {
         val manager = NotificationManagerCompat.from(context)
-        manager.cancel(CONTENT_ID_BASE + watcherId)
-        manager.cancel(FAILURE_ID_BASE + watcherId)
+        manager.cancel(CONTENT_TAG, watcherId)
+        clearFailure(context, watcherId)
+    }
+
+    fun clearFailure(context: Context, watcherId: Int) {
+        NotificationManagerCompat.from(context).cancel(FAILURE_TAG, watcherId)
     }
 
     private fun builder(context: Context): NotificationCompat.Builder {
@@ -91,9 +98,9 @@ object Notifier {
     // areNotificationsEnabled() is false whenever POST_NOTIFICATIONS is not granted,
     // so the guard below is the permission check; lint cannot see that it is.
     @SuppressLint("MissingPermission")
-    private fun post(context: Context, id: Int, notification: Notification) {
+    private fun post(context: Context, tag: String, id: Int, notification: Notification) {
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
-        manager.notify(id, notification)
+        manager.notify(tag, id, notification)
     }
 }

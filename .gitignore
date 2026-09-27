@@ -1,37 +1,51 @@
-# Build output
+# Private working files belong in local/. The safety net also catches common
+# configuration/credential filenames accidentally copied elsewhere.
+
+# 1 · The one folder for everything that must not reach GitHub: signed releases
+#     and whatever the signer leaves beside them, keys, logs, captures, notes.
+/local/
+
+# 2 · Paths a tool fixes.
+# Gradle and the Android plugin: build output and caches.
 build/
 .gradle/
+# Kotlin compiler sessions.
+.kotlin/
 .cxx/
-captures/
-*.apk
-*.aab
-*.apks
-# apksigner writes this beside a signed APK. "*.apk" does not match it, which is
-# how one reached a commit.
-*.idsig
-*.hprof
-
-# Machine-specific. sdk.dir differs on every machine and must never be committed.
+# Android Gradle plugin: reads the SDK path from the root; differs on every machine.
 local.properties
-
-# Signing material
-*.jks
-*.keystore
-keystore.properties
-
-# Editors
+# Android Studio: project files, and profiler captures.
 .idea/
 *.iml
+captures/
+# VS Code.
 .vscode/
-
-# Agent tooling. Personal to whoever is working on this, and not part of the
-# project — see CLAUDE.md, which is kept because it is about this repository.
+# Claude Code: loads agent configuration from the root. Personal to whoever works
+# here, and not this project's to license; CLAUDE.md is kept because it is about
+# this repository.
 .claude/
-
-# OS noise
+# Python, when the example backend runs.
+__pycache__/
+# macOS and Windows file browsers.
 .DS_Store
 Thumbs.db
 
-# Python bytecode from the example backend
-__pycache__/
+# 3 · Safety net — never tracked wherever they land. The file still moves to local/.
+# apksigner writes *.idsig beside a signed APK, and "*.apk" does not match it.
+*.apk
+*.aab
+*.apks
+*.idsig
+*.jks
+*.keystore
+keystore.properties
+google-services*.json
+*-firebase-adminsdk-*.json
+service-account*.json
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.hprof
 *.pyc

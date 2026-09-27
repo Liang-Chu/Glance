@@ -116,7 +116,8 @@ class SettingsTest {
     @Test
     fun `a new watcher starts on the values DESIGN states`() {
         val fresh = Watcher.blank(1)
-        assertEquals("once a day", 1440L, fresh.intervalMinutes)
+        assertEquals("new watchers use push", Watcher.PUSH, fresh.delivery)
+        assertEquals("once a day if switched to polling", 1440L, fresh.intervalMinutes)
         assertEquals("three seconds", 3L, fresh.expiryTotalSeconds)
         assertEquals(80, fresh.maxLength)
 

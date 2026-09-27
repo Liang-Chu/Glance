@@ -20,6 +20,8 @@ class BackendContractTest {
     private var seenMethod: String = ""
     private var seenBody: String = ""
     private var seenAuth: String? = null
+    private var seenContentType: String? = null
+    private var calls = 0
 
     @After
     fun stop() {
@@ -35,6 +37,8 @@ class BackendContractTest {
         runBlocking { Backend.fetch(watcher(maxLength = 120)) }
 
         assertEquals("POST", seenMethod)
+        assertEquals("application/json", seenContentType)
+        assertEquals(1, calls)
     }
 
     @Test
@@ -148,6 +152,25 @@ class BackendContractTest {
         assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "not JSON")
     }
 
+    @Test fun `numbers objects and null are not notification strings`() {
+        for (value in listOf("42", "{}", "null", "[]", "true")) {
+            serve(200, """{"title":$value,"text":"ok"}""")
+            assertTrue(runBlocking { Backend.fetch(watcher()) } is Outcome.Failed)
+            stop()
+        }
+    }
+
+    @Test fun `oversized response is bounded even with a small text field`() {
+        serve(200, """{"title":"T","text":"ok","extra":"""" + "x".repeat(Backend.MAX_RESPONSE_BYTES) + """"}""")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher()) }, "64 KiB")
+    }
+
+    @Test fun `line breaks in credentials fail without making a request`() {
+        serve(200, """{"title":"T","text":"ok"}""")
+        assertFailedBecause(runBlocking { Backend.fetch(watcher(credential = "token\r\nInjected: yes")) }, "credential")
+        assertEquals(0, calls)
+    }
+
     @Test
     fun `a server error is a failure carrying the status`() {
         serve(500, "boom")
@@ -197,8 +220,10 @@ class BackendContractTest {
     private fun serve(status: Int, body: String?) {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
         server!!.createContext("/glance") { exchange ->
+            calls++
             seenMethod = exchange.requestMethod
             seenAuth = exchange.requestHeaders.getFirst("Authorization")
+            seenContentType = exchange.requestHeaders.getFirst("Content-Type")
             seenBody = exchange.requestBody.bufferedReader().readText()
 
             if (body == null) {

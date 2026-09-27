@@ -27,6 +27,7 @@ sealed interface Outcome {
 object Backend {
 
     const val TITLE_MAX_CHARS = 32
+    const val MAX_RESPONSE_BYTES = 65536
 
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 30_000
@@ -40,7 +41,74 @@ object Backend {
      */
     private const val CLIENT_NAME = "Glance"
 
-    suspend fun fetch(watcher: Watcher): Outcome = withContext(Dispatchers.IO) {
+    private fun limits(watcher: Watcher) = JSONObject()
+        .put("watcher", watcher.name)
+        .put("max_length", watcher.maxLength)
+        .put("title_max_length", TITLE_MAX_CHARS)
+        .put("expires_after_seconds", watcher.expiryTotalSeconds)
+        .put("client", CLIENT_NAME)
+
+    suspend fun fetch(watcher: Watcher): Outcome = post(
+        watcher, limits(watcher).put("interval_minutes", watcher.intervalMinutes),
+        DiagnosticEvent.HTTP_POLL,
+    ) { connection ->
+        when (val code = connection.responseCode) {
+            HttpURLConnection.HTTP_NO_CONTENT -> Outcome.NothingToSay
+            HttpURLConnection.HTTP_OK -> connection.inputStream.use { stream ->
+                val bytes = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(4096)
+                while (true) {
+                    val count = stream.read(buffer, 0, minOf(buffer.size, MAX_RESPONSE_BYTES + 1 - bytes.size()))
+                    if (count < 0) break
+                    bytes.write(buffer, 0, count)
+                    if (bytes.size() > MAX_RESPONSE_BYTES) return@use rejected(
+                        DiagnosticEvent.RESPONSE_TOO_LARGE, "response exceeds 64 KiB")
+                }
+                parse(bytes.toString(Charsets.UTF_8.name()), watcher.maxLength)
+            }
+            else -> Outcome.Failed("backend returned " + code)
+        }
+    }
+
+    suspend fun register(watcher: Watcher, installationId: String, projectId: String): Outcome = post(
+        watcher, limits(watcher)
+            .put("operation", "register_push")
+            .put("subscription_id", watcher.pushKey)
+            .put("firebase_project_id", projectId)
+            .put("installation_id", installationId),
+        DiagnosticEvent.HTTP_REGISTER,
+    ) { connection ->
+        when (val code = connection.responseCode) {
+            HttpURLConnection.HTTP_NO_CONTENT -> Outcome.NothingToSay
+            HttpURLConnection.HTTP_UNAUTHORIZED, HttpURLConnection.HTTP_FORBIDDEN ->
+                Outcome.Failed("Connection key rejected (HTTP " + code + "). Re-scan the desktop QR or check Credential, then save to retry.")
+            else -> Outcome.Failed("push registration returned " + code + "; expected 204")
+        }
+    }
+
+    suspend fun unregister(watcher: Watcher): Outcome = post(watcher, JSONObject()
+        .put("operation", "unregister_push")
+        .put("subscription_id", watcher.pushKey)
+        .put("client", CLIENT_NAME),
+        DiagnosticEvent.HTTP_REMOVE,
+    ) { connection ->
+        when (val code = connection.responseCode) {
+            HttpURLConnection.HTTP_NO_CONTENT -> Outcome.NothingToSay
+            else -> Outcome.Failed("push removal returned " + code + "; expected 204")
+        }
+    }
+
+    private suspend fun post(
+        watcher: Watcher,
+        request: JSONObject,
+        operation: DiagnosticEvent,
+        response: (HttpURLConnection) -> Outcome,
+    ): Outcome = withContext(Dispatchers.IO) {
+        Diagnostics.event(operation, watcher.id)
+        if (!isUsableUrl(watcher.url)) return@withContext rejected(DiagnosticEvent.INVALID_URL,
+            "the configured URL is not valid HTTP(S)")
+        if (credentialProblem(watcher.credential) != null) return@withContext rejected(DiagnosticEvent.INVALID_CREDENTIAL,
+            "invalid backend credential format")
         var connection: HttpURLConnection? = null
         try {
             connection = (URL(watcher.url).openConnection() as HttpURLConnection).apply {
@@ -57,29 +125,14 @@ object Backend {
                 }
             }
 
-            // Everything the backend needs in order to answer well, and nothing
-            // it could not have worked out for itself. CONTRACT.md "The call".
-            val request = JSONObject()
-                .put("watcher", watcher.name)
-                .put("max_length", watcher.maxLength)
-                .put("title_max_length", TITLE_MAX_CHARS)
-                .put("expires_after_seconds", watcher.expiryTotalSeconds)
-                .put("interval_minutes", watcher.intervalMinutes)
-                .put("client", CLIENT_NAME)
-                .toString()
-            connection.outputStream.use { it.write(request.toByteArray(Charsets.UTF_8)) }
-
-            when (val code = connection.responseCode) {
-                HttpURLConnection.HTTP_NO_CONTENT -> Outcome.NothingToSay
-                HttpURLConnection.HTTP_OK -> parse(
-                    connection.inputStream.bufferedReader().use { it.readText() },
-                    watcher.maxLength,
-                )
-                else -> Outcome.Failed("backend returned " + code)
-            }
+            connection.outputStream.use { it.write(request.toString().toByteArray(Charsets.UTF_8)) }
+            Diagnostics.event(DiagnosticEvent.HTTP_STATUS, watcher.id, connection.responseCode)
+            response(connection)
         } catch (e: IOException) {
+            Diagnostics.failure(DiagnosticEvent.HTTP_EXCEPTION, e, watcher.id)
             Outcome.Failed("backend unreachable")
         } catch (e: ClassCastException) {
+            Diagnostics.failure(DiagnosticEvent.HTTP_EXCEPTION, e, watcher.id)
             Outcome.Failed("the configured URL is not HTTP")
         } finally {
             connection?.disconnect()
@@ -90,27 +143,35 @@ object Backend {
         val json = try {
             JSONObject(body)
         } catch (e: JSONException) {
-            return Outcome.Failed("response was not JSON")
+            return rejected(DiagnosticEvent.INVALID_JSON, "response was not JSON")
         }
 
         val title: String
         val text: String
         try {
-            // getString throws on a missing member. optString would default to "",
-            // which is the silent stand-in C1 forbids.
-            title = json.getString("title")
-            text = json.getString("text")
+            // Android's getString coerces numbers/objects; the wire contract requires strings.
+            title = json.get("title") as? String ?: return rejected(DiagnosticEvent.INVALID_CONTENT_TYPE, "title must be a string")
+            text = json.get("text") as? String ?: return rejected(DiagnosticEvent.INVALID_CONTENT_TYPE, "text must be a string")
         } catch (e: JSONException) {
-            return Outcome.Failed("response had no title or no text")
+            return rejected(DiagnosticEvent.MISSING_CONTENT, "response had no title or no text")
         }
 
-        if (title.isEmpty() || text.isEmpty()) return Outcome.Failed("title or text was empty")
+        return validateContent(title, text, maxLength)
+    }
+
+    fun validateContent(title: String, text: String, maxLength: Int): Outcome {
+        if (title.isEmpty() || text.isEmpty()) return rejected(DiagnosticEvent.EMPTY_CONTENT, "title or text was empty")
         if (title.length > TITLE_MAX_CHARS) {
-            return Outcome.Failed("title over " + TITLE_MAX_CHARS + " characters")
+            return rejected(DiagnosticEvent.TITLE_TOO_LONG, "title over " + TITLE_MAX_CHARS + " characters")
         }
         if (text.length > maxLength) {
-            return Outcome.Failed("text over " + maxLength + " characters")
+            return rejected(DiagnosticEvent.TEXT_TOO_LONG, "text over " + maxLength + " characters")
         }
         return Outcome.Content(title, text)
+    }
+
+    private fun rejected(event: DiagnosticEvent, reason: String): Outcome.Failed {
+        Diagnostics.event(event)
+        return Outcome.Failed(reason)
     }
 }

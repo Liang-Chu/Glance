@@ -1,33 +1,25 @@
 # Status — what is true right now
 
-*The present view. [`BACKLOG.md`](BACKLOG.md) is what is not done; this is what is. Overwritten,
-never appended — a dated snapshot of one day belongs in a report.*
+Stage: **Glance 2.0 build 7 production APK built and signed; final phone check and GitHub publication pending**.
+Updated 2026-09-26. Open work is tracked in [BACKLOG.md](BACKLOG.md).
 
-Stage: **1.0** — it works, all the way to the glasses, and carries many named watchers. Two claims
-are still unobserved and are named as such below · last full sweep 2026-09-10
+| Component | Evidence |
+| --- | --- |
+| Save/register crash | The owner's Samsung/API 36 export from 1.3 identified Firebase's auto-init setter waiting on the main thread. Retrace used the exact archived mapping. Save/delete/import now dispatch that operation to IO; five regression tests cover UI callers, enable/disable, readiness, cancellation and errors. Final 2.0 phone verification is still pending. |
+| FCM registration and delivery | The 1.3 phone export contains HTTP 204 registration/removal and repeated PUSH_RECEIVED / CONTENT_POSTED events. Earlier delivery to G2 was owner-reported. This does not verify 2.0 under Doze or all network conditions. |
+| QR connection | 24 parser/flow tests cover URL decoding, invalid input, duplicate endpoints/names, preference and ID preservation, one-result/cancel behavior, draft restoration, generated QR decoding and loopback registration. Real camera/permission UX still requires the phone. |
+| Firebase setup | Import now opens a high-contrast success dialog with the actual project ID and retains a status panel. Home shows white before setup and black with the saved project ID afterward; it reloads the selection on return and app entry. Restart guidance remains explicit, errors appear beside import, and long IDs can wrap. Five existing parser tests and release lint pass; visual/lifecycle verification on a phone is pending. |
+| Diagnostics | A real Samsung export was used to diagnose the save crash. Nine JVM tests cover bounded persistence, privacy, rotation and exception handling. API 26 export and clear-cache retention still need device checks. |
+| Polling and notifications | Earlier phone/G2 observations confirm manual polling, unchanged backend content and notification expiry. Unattended content polling and independent simultaneous watchers remain unverified. Startup now cancels only the obsolete id-less jobs seen in the log; current watcher schedules are preserved. |
+| Local Android validation | 87 JVM tests passed; debug and release lint each report 0 errors and 3 dependency-update advisories. File-length gate and minified release build passed. No physical device or emulator is attached. |
+| Example backends | Seven Python loopback tests passed, covering auth privacy, registration/address refresh/removal/tombstones, invalid input and sender validation. The oversized polling request test now checks rejection before sending a body, avoiding a Windows socket-close race. No new live FCM send was performed by these tests. |
+| Release package | Version 2.0, code 7, min SDK 26, target 37. APK is not debuggable; publisher certificate, APK v2 signature and 16 KiB alignment were verified. The signing certificate matches build 6 for in-place updates. The former public 1.0 APK matches the local debug-signed copy, so those installations still require reinstall. |
+| Source and privacy | Source files, 170 reachable Git history blobs and APK contents scanned with no owner Firebase values, private-key blocks or credential-pattern findings. The test-only private IP was replaced with a documentation address. Firebase/server keys and publisher signing material are ignored; the release key/config also have user-only filesystem access. |
+| Documentation and CI | README updated; repeated protocol examples link to CONTRACT. Empty reserved-document scaffolding, superseded prose and stale gate descriptions removed. Documentation checks pass. CI is prepared but has not run remotely for this source. |
 
-| Component | Covers | State | Verified how, when |
-| --- | --- | --- | --- |
-| Android app package, debug | `app/`, `app/build/outputs/apk/debug/` | **live** | installed on the owner's phone and opened; `aapt2 dump badging` reports `dev.liamchu.glance` 1.0, targetSdk 37, 2026-09-10 |
-| Android app package, release | `app/build/outputs/apk/release/` | **built, never run** | `assembleRelease` succeeds and R8 takes it from 12.5 MB to 1.37 MB. **Nothing has run the minified build**, and minification is exactly what breaks at runtime rather than at build time, 2026-09-10 |
-| Settings screens | `MainActivity.kt`, `WatcherEdit.kt`, `Components.kt`, `Theme.kt` | **built, never run** | the single-settings screen was used and worked; the watcher list and editor that replaced it compile and have not been opened, 2026-09-10 |
-| Watchers, many and named | `Watcher.kt`, `Settings.kt` | **built, never run** | `SettingsTest` covers the JSON round trip, the refusal of a malformed stored watcher, and every entry rule. Two watchers have never run side by side on a device, 2026-09-10 |
-| Backend client | `app/src/main/java/dev/liamchu/glance/Backend.kt` | **live** | the backend's own log shows the call arriving from the phone — `User-Agent: Glance/0.1`, carrying `max_length` 120, `title_max_length` 32, `expires_after_seconds` 63, `interval_minutes` 15 — and answered 200. Also driven across every outcome by `BackendContractTest`, 2026-09-10 |
-| Manual check | `app/src/main/java/dev/liamchu/glance/Scheduler.kt` `checkNow` | **live** | pressed on the phone, producing a notification carrying the backend's content, 2026-09-10 |
-| Notification | `app/src/main/java/dev/liamchu/glance/Notifier.kt` | **live** | the owner saw the title and text displayed, and confirmed it was character-for-character what the backend returned — nothing truncated, reworded, or substituted, 2026-09-10 |
-| Notification expiry | `Notifier.kt` `setTimeoutAfter` | **live** | a notification set to 63 seconds was watched and went on its own, with nobody dismissing it, 2026-09-10 |
-| Unattended scheduled run | `app/src/main/java/dev/liamchu/glance/GlanceWorker.kt`, `Scheduler.kt` | **built, never run** | every run so far was started by a button. WorkManager waking the app on its own is the load-bearing claim of [`DESIGN.md`](DESIGN.md) "The stack" and no test can reach it, 2026-09-10 |
-| Backend contract | [`CONTRACT.md`](CONTRACT.md) | **live** | every clause names the test that exercises it or says it has none; a real backend has answered it, and the request it received carried every field this file promises, 2026-09-10 |
-| `C3` file-length gate | `build.gradle.kts` | **live** | `./gradlew.bat checkFileLength` fails on a 501-line file and passes on the tree as it stands, 2026-09-10 |
-| Delivery to the G2 glasses | the Even Realities app's notification list | **live** | the backend's title and text were read on the glasses, 2026-09-10. What the glasses do beyond that is [`reference/g2-notifications.md`](reference/g2-notifications.md) |
-| Documentation set | `docs/`, `README.md`, `CLAUDE.md` | **live** | `ls docs/` lists a file for every active slot the map names, and every link in `docs/README.md` resolves, 2026-09-10 |
-| Version control | `.git/` | **live** | `git rev-parse --show-toplevel` names this directory, 2026-09-10 |
+The dedicated publisher key is stored locally and must be retained for updates. Its private files
+are not publication assets. The exact APK mapping and source snapshot are archived for retracing;
+a rebuilt APK's mapping is not interchangeable.
 
-**`C9` is satisfied for the path itself**: the running thing is a notification readable on the
-glasses, and one has been read. **One claim is still unproven** — every run so far happened because
-somebody pressed a button, so WorkManager waking the app unattended remains reasoning rather than
-observation, and it is the load-bearing choice of [`DESIGN.md`](DESIGN.md) "The stack".
-
-A row is suspect when its path has commits newer than its verification date — then re-verify it or
-delete it. No proportions: name which parts are live, which are built but unwired, which do not
-exist.
+C9 device verification is established only for the older observed flows. Local tests and a valid
+production signature do not establish final 2.0 camera, background delivery or glasses behavior.

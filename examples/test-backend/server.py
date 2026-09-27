@@ -2,11 +2,12 @@
 """
 A test backend for Glance. It returns content.json, verbatim. That is all it does.
 
-    python server.py                  # port 8080
+    python server.py                  # localhost, port 8080
+    python server.py --host 0.0.0.0   # trusted LAN access
     python server.py --port 9000
-    python server.py --token hunter2  # require Authorization: Bearer hunter2
 
-It prints every field Glance sends, and says whether what it is about to return
+Set GLANCE_BACKEND_CREDENTIAL to require a bearer credential.
+It prints Glance's contract fields, and says whether what it is about to return
 will be accepted or refused, so the limits are visible rather than guessed.
 
 Edit content.json and the next check picks it up — no restart. An empty file
@@ -24,9 +25,10 @@ Because the file is sent verbatim, you can test every rule in
 """
 
 import argparse
+import hmac
 import json
+import os
 import time
-import socket
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -48,7 +50,15 @@ def say(line):
 class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-        size = int(self.headers.get("Content-Length") or 0)
+        self.connection.settimeout(10)
+        if self.path != "/glance":
+            return self.reply(404, None)
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self.reply(400, None)
+        if not 0 <= size <= 65536:
+            return self.reply(413, None)
         body = self.rfile.read(size) if size else b""
         auth = self.headers.get("Authorization")
 
@@ -64,11 +74,11 @@ class Handler(BaseHTTPRequestHandler):
         say("")
         say("[%s] -> POST %s%s" % (time.strftime("%H:%M:%S"), self.path, gap))
         say("   %-18s: %s" % ("User-Agent", self.headers.get("User-Agent") or "(absent)"))
-        say("   %-18s: %s" % ("Authorization", auth or "(absent)"))
+        say("   %-18s: %s" % ("Authorization", "(present, redacted)" if auth else "(absent)"))
         asked = self.report_request(body)
 
-        if ARGS.token and auth != "Bearer " + ARGS.token:
-            say("<- 401  expected 'Bearer %s'" % ARGS.token)
+        if ARGS.token and not hmac.compare_digest((auth or "").encode(), ("Bearer " + ARGS.token).encode()):
+            say("<- 401  invalid credential")
             return self.reply(401, None)
 
         if not CONTENT.exists():
@@ -85,17 +95,20 @@ class Handler(BaseHTTPRequestHandler):
         self.reply(200, payload)
 
     def report_request(self, body):
-        """Print every field Glance sent, so the limits are visible."""
+        """Print the contract fields, so the limits are visible."""
         if not body:
             say("   %-18s: (empty)" % "body")
             return {}
         try:
             asked = json.loads(body.decode("utf-8"))
         except ValueError:
-            say("   %-18s: %s   (not JSON)" % ("body", body.decode("utf-8", "replace")))
+            say("   body: not JSON (not logged)")
             return {}
-        for key in sorted(asked):
-            say("   %-18s: %s" % (key, asked[key]))
+        if not isinstance(asked, dict):
+            return {}
+        for key in ("watcher", "max_length", "title_max_length", "expires_after_seconds", "interval_minutes", "client"):
+            if key in asked:
+                say("   %-18s: %s" % (key, asked[key]))
         return asked
 
     def report_fit(self, payload, asked):
@@ -106,21 +119,25 @@ class Handler(BaseHTTPRequestHandler):
             say("   !! not JSON, so Glance will REFUSE it")
             return
 
+        if not isinstance(sending, dict):
+            say("   !! not a JSON object, so Glance will REFUSE it")
+            return
         for field, limit_key in (("title", "title_max_length"), ("text", "max_length")):
             value = sending.get(field)
             limit = asked.get(limit_key)
-            if value is None:
-                say("   !! no %s, so Glance will REFUSE it" % field)
+            length = len(value.encode("utf-16-le", "surrogatepass")) // 2 if isinstance(value, str) else 0
+            if not isinstance(value, str):
+                say("   !! %s is not a string, so Glance will REFUSE it" % field)
             elif value == "":
                 say("   !! %s is empty, so Glance will REFUSE it" % field)
-            elif limit is None:
+            elif type(limit) is not int:
                 say("   %-5s %d chars  (no %s was sent, cannot check)"
-                    % (field, len(value), limit_key))
-            elif len(value) > limit:
+                    % (field, length, limit_key))
+            elif length > limit:
                 say("   !! %s is %d chars, limit %d -> Glance will REFUSE it"
-                    % (field, len(value), limit))
+                    % (field, length, limit))
             else:
-                say("   %-5s %d of %d chars  OK" % (field, len(value), limit))
+                say("   %-5s %d of %d chars  OK" % (field, length, limit))
 
     def reply(self, status, body):
         self.send_response(status)
@@ -137,51 +154,21 @@ class Handler(BaseHTTPRequestHandler):
         pass  # say() above is the log
 
 
-def lan_addresses():
-    """
-    Every address this machine answers on, best guess first.
-
-    One address is not enough: a laptop that moves between wifi, a hotspot and a
-    VPN gets a different one each time, and the app goes on pointing at the old
-    one. Printing them all makes a stale URL obvious instead of silent.
-    """
-    found = []
-    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        probe.connect(("8.8.8.8", 80))
-        found.append(probe.getsockname()[0])
-    except OSError:
-        pass
-    finally:
-        probe.close()
-
-    try:
-        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            address = info[4][0]
-            if address not in found and not address.startswith("169.254."):
-                found.append(address)
-    except OSError:
-        pass
-
-    return found or ["127.0.0.1"]
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
-    parser.add_argument("--token", default=None, help="require this bearer credential")
+    parser.add_argument("--token", default=os.environ.get("GLANCE_BACKEND_CREDENTIAL"), help="bearer credential (prefer GLANCE_BACKEND_CREDENTIAL)")
+    parser.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 only on a trusted LAN")
     ARGS = parser.parse_args()
 
     say("Serving %s" % CONTENT)
     say("")
-    say("Backend URL for Glance — try the first, fall back to the others:")
-    for address in lan_addresses():
-        say("    http://%s:%d/glance" % (address, ARGS.port))
+    say("Listening on http://%s:%d/glance" % (ARGS.host, ARGS.port))
     if ARGS.token:
-        say("Credential for Glance:   %s" % ARGS.token)
+        say("Bearer credential required (not displayed).")
     say("")
-    say("These change when you change network. If Glance stops reaching this,")
-    say("check the address here before assuming anything else broke.")
-    say("Phone must be on the same network. Ctrl+C to stop.")
+    say("For a phone on your LAN, use --host 0.0.0.0 and enter this computer's LAN IP in Glance.")
+    say("Development server only. Ctrl+C to stop.")
 
-    ThreadingHTTPServer(("0.0.0.0", ARGS.port), Handler).serve_forever()
+    ThreadingHTTPServer((ARGS.host, ARGS.port), Handler).serve_forever()

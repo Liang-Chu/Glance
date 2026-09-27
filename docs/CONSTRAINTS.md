@@ -5,9 +5,7 @@
 > was. A breach row is deleted by the commit that satisfies its restore condition, and by nothing
 > else.
 >
-> These nine are the docs-and-constraints defaults, adopted whole on 2026-09-10. Several name checks
-> that cannot run until there is source to run them against; each of those says so at the point of
-> use, and the work to make it runnable is in [`BACKLOG.md`](BACKLOG.md).
+> These nine are the project's engineering constraints, adopted on 2026-09-10.
 
 ## C1 — Fail fast; no fallbacks
 
@@ -34,8 +32,8 @@ one definition site is a breach, and the extras become links or references to th
 Source files. Past 500 lines the file is split. The number moves only as a recorded decision — struck
 through and replaced in place — and never gains a per-case exception.
 
-**Verdict / test:** a line-count check that fails the build past 500 lines. *The check does not exist
-yet; it is tracked in [`BACKLOG.md`](BACKLOG.md) and this constraint is unenforced until it lands.*
+**Verdict / test:** `gradlew checkFileLength` fails the build past 500 lines. The root Gradle script
+owns the check; CI runs it for every change.
 
 ## C4 — Solve it structurally, not by stacking cases
 

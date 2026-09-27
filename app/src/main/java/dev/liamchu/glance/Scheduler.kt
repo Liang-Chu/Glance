@@ -12,9 +12,8 @@ import androidx.work.workDataOf
 import java.util.concurrent.TimeUnit
 
 /**
- * DESIGN.md "The stack": WorkManager owns the interval, because a repeating job
- * survives Doze only when the operating system is the thing scheduling it. It
- * also re-registers itself after a reboot, which is criterion purpose-5.
+ * WorkManager owns polling intervals and defers them during Doze. Push watchers
+ * register once and receive their content through Firebase Cloud Messaging.
  *
  * One schedule per watcher, named after its id, so watchers cannot disturb one
  * another and deleting one takes only its own work with it.
@@ -31,7 +30,20 @@ object Scheduler {
 
     private fun immediateName(id: Int) = "glance-now-" + id
 
+    /** Pre-watcher releases left id-less jobs behind; they can only wake up and do nothing. */
+    fun cancelObsoleteWork(context: Context) {
+        val manager = WorkManager.getInstance(context)
+        manager.cancelUniqueWork("glance-poll")
+        manager.cancelUniqueWork("glance-now")
+    }
+
     fun schedule(context: Context, watcher: Watcher) {
+        if (watcher.isPush) {
+            cancel(context, watcher.id)
+            PushRegistration.enqueue(context, watcher.id)
+            return
+        }
+        PushRegistration.cancel(context, watcher.id)
         val request = PeriodicWorkRequestBuilder<GlanceWorker>(
             watcher.intervalMinutes,
             TimeUnit.MINUTES,
@@ -48,16 +60,9 @@ object Scheduler {
         )
     }
 
-    /**
-     * One run, immediately. The floor on repeating work is fifteen minutes, which
-     * makes "does this work at all" a fifteen-minute question; this makes it a
-     * ten-second one. One-shot work has no floor.
-     *
-     * It does not touch the repeating schedule — that is still the thing that has
-     * to be proven, and a check that ran because a button was pressed proves the
-     * call and the notification, not the waking up.
-     */
+    /** Run one manual check without changing the repeating schedule. */
     fun checkNow(context: Context, watcher: Watcher) {
+        if (watcher.isPush) return
         val request = OneTimeWorkRequestBuilder<GlanceWorker>()
             .setConstraints(onlyWhenOnline)
             .setInputData(workDataOf(KEY_WATCHER_ID to watcher.id))
@@ -72,5 +77,6 @@ object Scheduler {
         val manager = WorkManager.getInstance(context)
         manager.cancelUniqueWork(repeatingName(watcherId))
         manager.cancelUniqueWork(immediateName(watcherId))
+        PushRegistration.cancel(context, watcherId)
     }
 }

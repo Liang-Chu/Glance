@@ -60,16 +60,17 @@ fi
 
 # 6 · ORIENTATION against the tree, both directions. Checking only one of them
 #     lets the code map name a directory that is not there, which reads as a
-#     missing file to anyone who just cloned it.
+#     missing file to anyone who just cloned it. Directories git ignores are
+#     skipped both ways: local/ is named, and a clone does not have it.
 if [ -f "$DOCS/ORIENTATION.md" ]; then
   unmapped=$(for d in */; do
-      case "${d%/}" in .*|build) continue;; esac
+      git check-ignore -q "$d" && continue
       grep -q "${d%/}" "$DOCS/ORIENTATION.md" || echo "  ${d%/}/ is not named in ORIENTATION.md"
     done)
   [ -n "$unmapped" ] && report "A source directory is missing from the code map" "$unmapped"
 
   phantom=$(grep -oE '^[[:space:]]+\.?[A-Za-z_][A-Za-z_0-9.-]*/' "$DOCS/ORIENTATION.md"     | tr -d ' ' | sort -u     | while read -r d; do
-        [ -d "${d%/}" ] || grep -q "${d}.*DOES NOT EXIST" "$DOCS/ORIENTATION.md"           || echo "  $d is named in ORIENTATION.md but is not in the repository"
+        [ -d "${d%/}" ] || git check-ignore -q "$d" || grep -q "${d}.*DOES NOT EXIST" "$DOCS/ORIENTATION.md"           || echo "  $d is named in ORIENTATION.md but is not in the repository"
       done)
   [ -n "$phantom" ] && report "The code map names a directory that does not exist" "$phantom"
 fi
@@ -78,7 +79,12 @@ fi
 stacked=$(grep -rn '~~.*~~.*~~' $DOCS --include=*.md 2>/dev/null | sed 's/^/  /')
 [ -n "$stacked" ] && report "More than one overturn in a section; delete the oldest" "$stacked"
 
-# 8 · Length is a prompt to re-read and compact, never to split. Not a failure.
+# 8 · Nothing tracked that the ignore rules exclude — committed before the rule
+#     existed, or forced. The fix is git rm --cached, then move it to local/.
+leaked=$(git ls-files -ci --exclude-standard | sed 's/^/  /')
+[ -n "$leaked" ] && report "Tracked files the ignore rules exclude" "$leaked"
+
+# 9 · Length is a prompt to re-read and compact, never to split. Not a failure.
 long=$(find $DOCS -name '*.md' -exec awk 'END{if(NR>400) printf "  %5d  %s\n", NR, FILENAME}' {} \; 2>/dev/null)
 [ -n "$long" ] && printf '\n== Over 400 lines: read whole and compact, do not split ==\n%s\n' "$long"
 
