@@ -7,7 +7,6 @@ Android notifications to your glasses. Glance does not connect to the glasses di
 - **Push by default:** receive backend updates through Firebase Cloud Messaging (FCM).
 - **Your project, your backend:** import your Firebase configuration on the phone; no shared Glance server.
 - **Multiple watchers:** separate backends, credentials, notification limits and expiry times.
-- **Scan to connect:** scan the existing Even-PIlot desktop QR to fill a PUSH watcher.
 - **Optional polling:** scheduled checks with a minimum interval of 15 minutes.
 - **Local diagnostics:** export recent events and crash details when something goes wrong.
 
