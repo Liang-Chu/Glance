@@ -16,6 +16,9 @@ jobs:
         with:
           python-version: '3.12'
       - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+        with:
+          # The action's default includes the retired SDK package named "tools".
+          packages: platform-tools
       - run: sdkmanager 'platforms;android-37' 'build-tools;37.0.0'
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
       - run: bash tools/check-docs.sh

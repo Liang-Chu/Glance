@@ -35,6 +35,8 @@ Back up the private key and signing properties securely; do not attach them to a
 CI in `.github/workflows/check.yml` runs the same checks and builds a minified unsigned APK without
 Firebase configuration or signing secrets. Actions are pinned to commits; the Gradle distribution
 has a checksum. CI execution on GitHub is separate from local verification.
+SDK setup requests `platform-tools` explicitly; the action's default also requests the retired
+`tools` package and fails before compilation. Platform/build-tools versions are installed separately.
 
 **Verify**: `app/build/outputs/apk/debug/app-debug.apk` exists and
 `"$ANDROID_HOME/build-tools/37.0.0/aapt2.exe" dump badging app/build/outputs/apk/debug/app-debug.apk`
