@@ -54,7 +54,7 @@ data class WatcherDraft(
         pushKey = if (delivery != Watcher.PUSH) "" else if (!original.isPush || original.pushKey.isEmpty() ||
             url.trim() != original.url || credential != original.credential) UUID.randomUUID().toString() else original.pushKey,
         pushRegistered = false, lastRunFailed = false,
-    )
+    ).preserveRegistrationFrom(original)
 
     companion object {
         const val PAIRING_EXPIRY_SECONDS = 30

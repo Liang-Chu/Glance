@@ -57,9 +57,10 @@ object Notifier {
      * a status code, a length, an unreachable host. None of it is response body.
      * The failure notice does not expire: it is the only sign the app is broken.
      */
-    fun postFailure(context: Context, watcher: Watcher, reason: String) {
+    fun postFailure(context: Context, watcher: Watcher, reason: String, source: FailureSource) {
         val notification = builder(context)
-            .setContentTitle(context.getString(R.string.failure_title, watcher.name))
+            .setContentTitle(context.getString(if (source == FailureSource.REGISTRATION)
+                R.string.registration_failure_title else R.string.failure_title, watcher.name))
             .setContentText(reason)
             .setStyle(NotificationCompat.BigTextStyle().bigText(reason))
             .setAutoCancel(true)

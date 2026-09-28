@@ -85,7 +85,9 @@ object WatcherStore {
         context.store.edit { stored ->
             val current = stored[KEY_WATCHERS]?.let { decode(it) } ?: emptyList()
             retainRetired(stored, current.filter { it.id == watcher.id && it.isPush && it.pushKey != watcher.pushKey })
-            stored[KEY_WATCHERS] = encode(current.filterNot { it.id == watcher.id } + watcher)
+            val existing = current.firstOrNull { it.id == watcher.id }
+            val saved = if (existing != null) watcher.preserveRegistrationFrom(existing) else watcher
+            stored[KEY_WATCHERS] = encode(current.filterNot { it.id == watcher.id } + saved)
         }
     }
 
@@ -100,16 +102,6 @@ object WatcherStore {
     /** Serialize delivery with edits/deletion and other deliveries, including failure suppression. */
     suspend fun updateCurrent(context: Context, expected: Watcher, update: (Watcher) -> Watcher) {
         change(context) { current -> current.map { if (it.sameConfiguration(expected)) update(it) else it } }
-    }
-
-    suspend fun setPushRegistered(context: Context, expected: Watcher, registered: Boolean) {
-        change(context) { current ->
-            current.map {
-                if (it.sameConfiguration(expected)) {
-                    it.copy(pushRegistered = registered)
-                } else it
-            }
-        }
     }
 
     suspend fun observePushAddress(context: Context, expected: Watcher, address: String) {

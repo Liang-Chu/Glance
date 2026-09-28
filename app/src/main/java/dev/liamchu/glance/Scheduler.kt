@@ -40,7 +40,8 @@ object Scheduler {
     fun schedule(context: Context, watcher: Watcher) {
         if (watcher.isPush) {
             cancel(context, watcher.id)
-            PushRegistration.enqueue(context, watcher.id)
+            // SAVE AND REGISTER is an explicit retry even when the saved values are unchanged.
+            PushRegistration.enqueue(context, watcher.id, force = true)
             return
         }
         PushRegistration.cancel(context, watcher.id)

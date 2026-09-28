@@ -3,5 +3,6 @@
     <string name="app_name">Glance</string>
     <string name="channel_name">Glance</string>
     <!-- Named, because with several watchers "something failed" is not useful. -->
-    <string name="failure_title">%1$s could not be reached</string>
+    <string name="failure_title">%1$s: notification issue</string>
+    <string name="registration_failure_title">%1$s: push registration failed</string>
 </resources>

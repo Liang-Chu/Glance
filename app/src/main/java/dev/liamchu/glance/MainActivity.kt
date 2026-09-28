@@ -109,9 +109,7 @@ private fun Screens() {
     LaunchedEffect(Unit) {
         reload()
         PushRegistration.enqueueRemovals(context)
-        if (FirebaseRuntime.ready) watchers.filter { it.isPush }.forEach {
-            PushRegistration.enqueue(context, it.id, androidx.work.ExistingWorkPolicy.KEEP)
-        }
+        if (FirebaseRuntime.ready) PushRegistration.enqueueMissing(context)
         WatcherStore.observe(context).collect { watchers = it }
     }
 
@@ -270,7 +268,7 @@ private fun WatcherRow(watcher: Watcher, onOpen: () -> Unit) {
                     FirebaseRuntime.restartRequired -> "PUSH PAUSED: RESTART REQUIRED"
                     !FirebaseRuntime.ready -> "FIREBASE SETUP REQUIRED"
                     watcher.pushRegistered -> "REGISTERED FOR PUSH"
-                    else -> "PUSH NOT REGISTERED YET"
+                    else -> "PUSH REGISTRATION REQUIRED"
                 },
                 style = MaterialTheme.typography.labelSmall,
                 color = GlanceGrey,

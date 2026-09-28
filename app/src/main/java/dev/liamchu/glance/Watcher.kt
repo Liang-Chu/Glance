@@ -34,6 +34,15 @@ data class Watcher(
 ) {
     val isPush: Boolean get() = delivery == PUSH
 
+    val needsPushRegistration: Boolean get() = isPush && (!pushRegistered || pushAddress.isEmpty())
+
+    fun shouldRegisterPush(force: Boolean): Boolean = isPush && (force || needsPushRegistration)
+
+    /** An unchanged editor must not overwrite a registration completed while it was open. */
+    fun preserveRegistrationFrom(current: Watcher): Watcher =
+        if (sameConfiguration(current)) copy(pushRegistered = current.pushRegistered, pushAddress = current.pushAddress)
+        else copy(pushRegistered = false)
+
     fun sameConfiguration(other: Watcher): Boolean =
         copy(lastRunFailed = other.lastRunFailed, pushRegistered = other.pushRegistered,
             pushAddress = other.pushAddress) == other

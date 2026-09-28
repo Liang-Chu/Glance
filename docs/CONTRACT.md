@@ -142,7 +142,10 @@ using WorkManager exponential backoff; polling still makes one attempt per sched
 Upsert by `subscription_id`. Update the installation ID and all settings when registration repeats;
 several watchers may share one installation. `firebase_project_id` identifies the user-imported
 target project and was added in 1.1; backends should tolerate additional request fields. The backend decides when to send; no polling interval
-is sent. Glance registers on save, app opening and SDK address changes. A successful response means
+is sent. Glance registers on save and SDK address changes; opening the app retries only registrations
+that are not confirmed. Registration is not a heartbeat or a backend health check. Backends must retain
+accepted subscriptions until removal or invalidation; SAVE AND REGISTER can restore a lost subscription.
+A successful response means
 registration was accepted, not that notification delivery is confirmed.
 
 ### Send content

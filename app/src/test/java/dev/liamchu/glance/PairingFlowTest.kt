@@ -85,7 +85,7 @@ class PairingFlowTest {
         val again = WatcherDraft(retry).scanned(connection(), listOf(retry)).forSave()
         assertEquals(original.pushKey, retry.pushKey)
         assertEquals(retry.pushKey, again.pushKey)
-        assertFalse(retry.pushRegistered)
+        assertTrue(retry.pushRegistered)
         val changed = WatcherDraft(original).scanned(connection(key = "different-key-1234567890123456"), emptyList()).forSave()
         assertNotEquals(original.pushKey, changed.pushKey)
     }

@@ -15,11 +15,11 @@ Android notifications to your glasses. Glance does not connect to the glasses di
 Get the APK from [Releases](https://github.com/Liang-Chu/Glance/releases). Requires Android 8.0+;
 push also requires Google Play services and connectivity to FCM.
 
-**Upgrading to 2.0:** this is the first release with a dedicated publisher signing key. The old
+**Upgrading to 2.x:** starting with 2.0, Glance uses a dedicated publisher signing key. The old
 1.0 APK and development test APKs used a debug key, so Android cannot update them in place.
 Export any needed diagnostics and keep your Firebase JSON and backend settings, uninstall the old
-app, then install and configure 2.0. Uninstalling removes local settings and logs. Later official
-releases will use the same publisher key and support normal updates.
+app, then install and configure the current release. Uninstalling removes local settings and logs.
+Version 2.0.1 uses the same publisher key as 2.0 and supports an in-place update that keeps your settings.
 
 ## Set up push
 
@@ -63,6 +63,12 @@ Open **DIAGNOSTICS → EXPORT LOGS** and attach the file to your bug report, wit
 Logs stay on the phone until exported. They exclude credentials, backend URLs, Firebase IDs and
 notification content. Clearing cache preserves logs; uninstalling or clearing app data removes them.
 See [diagnostic details](docs/PROCESS.md#collect-diagnostic-logs).
+
+Push registration and receiving messages use different connections. Your phone must reach your backend
+to register or update a watcher; receiving FCM messages does not require that direct connection.
+Opening Glance leaves confirmed registrations alone. If your backend loses a subscription, open the
+watcher and tap **SAVE AND REGISTER** to register it again. A failed refresh does not necessarily mean
+push delivery has stopped.
 
 Push and polling are best-effort: connectivity and Android power management affect delivery.
 Force-stopping Glance prevents push until it is reopened. Polling may run later than its interval.

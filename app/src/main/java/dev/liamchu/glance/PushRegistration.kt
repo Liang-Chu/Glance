@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 object PushRegistration {
+    private const val KEY_FORCE = "force_registration"
+
     fun unavailableReason(context: Context): String? {
         if (FirebaseRuntime.restartRequired) return "FIREBASE PROJECT CHANGED. FINISH THE RESTART IN FIREBASE SETUP."
         if (!FirebaseRuntime.ready) return "IMPORT GOOGLE-SERVICES.JSON IN FIREBASE SETUP FIRST."
@@ -32,13 +34,24 @@ object PushRegistration {
 
     private fun name(id: Int) = "glance-register-" + id
 
-    fun enqueue(context: Context, id: Int, policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
+    fun enqueue(context: Context, id: Int, policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
+        force: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<PushRegistrationWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-            .setInputData(workDataOf(Scheduler.KEY_WATCHER_ID to id))
+            .setInputData(workDataOf(Scheduler.KEY_WATCHER_ID to id, KEY_FORCE to force))
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(name(id), policy, request)
     }
+
+    suspend fun enqueueMissing(context: Context) = enqueueMissing(WatcherStore.all(context)) {
+        enqueue(context, it, ExistingWorkPolicy.KEEP)
+    }
+
+    internal fun enqueueMissing(watchers: List<Watcher>, enqueue: (Int) -> Unit) {
+        watchers.filter { it.needsPushRegistration }.forEach { enqueue(it.id) }
+    }
+
+    internal fun isForced(data: androidx.work.Data): Boolean = data.getBoolean(KEY_FORCE, false)
 
     fun cancel(context: Context, id: Int) {
         WorkManager.getInstance(context).cancelUniqueWork(name(id))
@@ -105,17 +118,17 @@ class PushRegistrationWorker(context: Context, parameters: WorkerParameters) : C
         val context = applicationContext
         val id = inputData.getInt(Scheduler.KEY_WATCHER_ID, -1)
         val watcher = WatcherStore.byId(context, id) ?: return Result.success()
-        if (!watcher.isPush) return Result.success()
+        // Also discard previously queued automatic refreshes after an app update or another success.
+        if (!watcher.shouldRegisterPush(PushRegistration.isForced(inputData))) return Result.success()
         if (!FirebaseRuntime.ready) {
             Diagnostics.event(DiagnosticEvent.REGISTRATION_SKIPPED, id)
             return Result.success() // Import/restart enqueues registration again.
         }
         val projectId = FirebaseRuntime.projectId ?: return Result.success()
-        WatcherStore.setPushRegistered(context, watcher, false)
         val problem = PushRegistration.unavailableReason(context)
         if (problem != null) {
             Diagnostics.event(DiagnosticEvent.REGISTRATION_SKIPPED, id)
-            Delivery.show(context, watcher, Outcome.Failed(problem))
+            Delivery.show(context, watcher, Outcome.Failed(problem), FailureSource.REGISTRATION)
             return Result.failure()
         }
         val (result, address) = withContext(Dispatchers.IO) {
@@ -145,7 +158,7 @@ class PushRegistrationWorker(context: Context, parameters: WorkerParameters) : C
             Diagnostics.event(DiagnosticEvent.REGISTRATION_DONE, id)
             return Result.success()
         }
-        Delivery.show(context, current, result)
+        Delivery.show(context, current, result, FailureSource.REGISTRATION)
         // Bound retries; the user can retry registration by saving the watcher.
         Diagnostics.event(if (runAttemptCount < 4) DiagnosticEvent.REGISTRATION_RETRY
             else DiagnosticEvent.REGISTRATION_GAVE_UP, id, runAttemptCount)

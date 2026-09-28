@@ -133,6 +133,10 @@ upgrade cannot silently change their behavior. Scan-specific defaults are in "Sc
 Each watcher reports the first failure with a separate notification, then stays quiet until
 successful content delivery or registration clears its failure state and notice. Failure notices
 remain until cleared or dismissed; they contain fixed reasons, never backend response bodies.
+Registration failures are labelled as registration failures in both notifications and diagnostics,
+not as failed content delivery or a general claim that the watcher cannot be reached. A failed
+manual refresh of an unchanged, previously registered watcher preserves its confirmed registration
+and explains that previously registered pushes may still arrive.
 
 A backend returning HTTP 204 for polling has nothing to say: it neither posts content nor changes
 failure state. Delivery and state changes are serialized with watcher edits/deletion so a stale
@@ -146,6 +150,8 @@ result cannot revive a deleted watcher or affect a replacement configuration.
 - `failure-2` A failure notification carries no text originating from the backend's response body.
 - `failure-3` A run in which the backend reports it has nothing to say posts nothing, and neither
   raises nor clears the failure state.
+- `failure-4` Push registration failures use a registration-specific title and REGISTRATION_FAILED
+  event. Content failures use DELIVERY_FAILED; a malformed message is not called an unreachable backend.
 
 ## 5 · The stack
 
@@ -218,9 +224,15 @@ the installation's FCM address, subscription ID, target Firebase project and not
 It sends data-only messages through that target project; Glance validates and posts their content.
 The Firebase and backend protocols remain those in [CONTRACT.md](CONTRACT.md).
 
-Use the SDK's `register()` and `onRegistered()` installation-ID APIs. Address changes, saves and app
-opening trigger registration. Registration and removal each allow five attempts with WorkManager
-backoff. Registration success proves backend acceptance, not end-to-end delivery.
+Use the SDK's `register()` and `onRegistered()` installation-ID APIs. New or changed watchers and
+SDK address changes require registration. Opening the app retries only missing registrations;
+it does not contact the backend for an already registered watcher with a saved address. Workers
+also skip redundant automatic jobs, including ones queued before an upgrade. SAVE AND REGISTER
+explicitly retries even unchanged settings, so the user can restore a lost backend subscription.
+An unchanged save preserves the latest registration state, including SDK changes while the editor
+was open; a refresh attempt itself does not revoke a previous success. Registration and removal
+each allow five attempts with WorkManager backoff. Registration success proves backend acceptance,
+not end-to-end delivery. Receiving FCM content never depends on the current HTTP registration flag.
 
 Save, delete and import run FCM auto-init updates on Dispatchers.IO: the SDK setter may internally
 wait for the installation ID. Resume the caller's dispatcher afterward and propagate cancellation
@@ -253,6 +265,10 @@ queue TTL; watcher expiry starts when Glance posts the notification. There is no
   it expires on the phone. This requires configured hardware verification, recorded in STATUS.md.
 - `push-9` Enabling/disabling auto-init after settings changes runs off the UI thread even when the
   caller is a UI coroutine; unavailable Firebase is skipped and completion resumes the caller normally.
+- `push-10` Opening a registered watcher or executing its old automatic job causes no registration
+  request. Missing registrations and SDK address changes still register; a manual save can force a retry.
+- `push-11` An unchanged save or failed refresh does not erase confirmed registration. Configuration
+  changes invalidate confirmation, and an editor cannot overwrite a newer address or registration result.
 
 ## 9 · User-owned Firebase setup
 
