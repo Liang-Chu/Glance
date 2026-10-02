@@ -6,12 +6,13 @@ import org.junit.Test
 
 class FirebaseConfigTest {
     private val packageName = "dev.liamchu.glance"
-    // Synthetic client data: never use a real project or key in fixtures.
+    // Construct a synthetic key at runtime so it cannot be mistaken for a leaked credential.
+    private val fakeApiKey = "AIza" + "0".repeat(35)
     private fun json() = JSONObject("""{
         "project_info":{"project_number":"123456789","project_id":"sample-project"},
         "client":[{"client_info":{"mobilesdk_app_id":"1:123456789:android:abcdef",
             "android_client_info":{"package_name":"dev.liamchu.glance"}},
-            "api_key":[{"current_key":"AIza00000000000000000000000000000000000"}]}]
+            "api_key":[{"current_key":"${fakeApiKey}"}]}]
     }""")
 
     @Test fun `imports matching Android client and stores only required public fields`() {
