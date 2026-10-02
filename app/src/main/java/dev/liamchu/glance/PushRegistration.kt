@@ -35,12 +35,13 @@ object PushRegistration {
     private fun name(id: Int) = "glance-register-" + id
 
     fun enqueue(context: Context, id: Int, policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
-        force: Boolean = false) {
+        force: Boolean = false): java.util.UUID {
         val request = OneTimeWorkRequestBuilder<PushRegistrationWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .setInputData(workDataOf(Scheduler.KEY_WATCHER_ID to id, KEY_FORCE to force))
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(name(id), policy, request)
+        return request.id
     }
 
     suspend fun enqueueMissing(context: Context) = enqueueMissing(WatcherStore.all(context)) {
@@ -120,6 +121,7 @@ class PushRegistrationWorker(context: Context, parameters: WorkerParameters) : C
         val watcher = WatcherStore.byId(context, id) ?: return Result.success()
         // Also discard previously queued automatic refreshes after an app update or another success.
         if (!watcher.shouldRegisterPush(PushRegistration.isForced(inputData))) return Result.success()
+        setProgress(workDataOf()) // Clear any reason from the previous retry attempt.
         if (!FirebaseRuntime.ready) {
             Diagnostics.event(DiagnosticEvent.REGISTRATION_SKIPPED, id)
             return Result.success() // Import/restart enqueues registration again.
@@ -129,7 +131,7 @@ class PushRegistrationWorker(context: Context, parameters: WorkerParameters) : C
         if (problem != null) {
             Diagnostics.event(DiagnosticEvent.REGISTRATION_SKIPPED, id)
             Delivery.show(context, watcher, Outcome.Failed(problem), FailureSource.REGISTRATION)
-            return Result.failure()
+            return Result.failure(workDataOf(REGISTRATION_REASON to problem))
         }
         val (result, address) = withContext(Dispatchers.IO) {
             try {
@@ -154,14 +156,17 @@ class PushRegistrationWorker(context: Context, parameters: WorkerParameters) : C
         if (!current.sameConfiguration(watcher)) return Result.success()
         if (result == Outcome.NothingToSay) {
             checkNotNull(address)
-            WatcherStore.recordPushRegistration(context, watcher, address)
-            Diagnostics.event(DiagnosticEvent.REGISTRATION_DONE, id)
-            return Result.success()
+            val confirmed = WatcherStore.recordPushRegistration(context, watcher, address)
+            Diagnostics.event(if (confirmed) DiagnosticEvent.REGISTRATION_DONE else DiagnosticEvent.REGISTRATION_SKIPPED, id)
+            return Result.success(workDataOf(REGISTRATION_CONFIRMED to confirmed,
+                REGISTRATION_ADDRESS_HASH to registrationAddressHash(address)))
         }
+        val reason = (result as Outcome.Failed).reason
+        setProgress(workDataOf(REGISTRATION_REASON to reason))
         Delivery.show(context, current, result, FailureSource.REGISTRATION)
         // Bound retries; the user can retry registration by saving the watcher.
         Diagnostics.event(if (runAttemptCount < 4) DiagnosticEvent.REGISTRATION_RETRY
             else DiagnosticEvent.REGISTRATION_GAVE_UP, id, runAttemptCount)
-        return if (runAttemptCount < 4) Result.retry() else Result.failure()
+        return if (runAttemptCount < 4) Result.retry() else Result.failure(workDataOf(REGISTRATION_REASON to reason))
     }
 }

@@ -3,7 +3,9 @@ package dev.liamchu.glance
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -14,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 /** Scan and manual entry edit the same unsaved draft, then use the same save/registration path. */
 @Composable
@@ -34,6 +38,7 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
     var message by rememberSaveable { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var scanning by rememberSaveable { mutableStateOf(false) }
+    var registrationRequest by rememberSaveable { mutableStateOf<String?>(null) }
     var duplicate by remember { mutableStateOf<PairingConnection?>(null) }
     BackHandler(saving) { /* Finish the settings transaction before leaving. */ }
 
@@ -42,11 +47,11 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
             duplicate = connection
         } else {
             draft = draft.scanned(connection, watchers)
-            message = "CONNECTION FILLED. REVIEW IT, THEN SAVE AND REGISTER."
+            message = ""
         }
     }
 
-    fun saveThen(action: (Watcher) -> Unit) {
+    fun saveThen(action: (Watcher) -> UUID?) {
         if (saving) return
         draft.problem(watchers)?.let { message = it; return }
         if (draft.paired && draft.original.url.isEmpty()) {
@@ -64,15 +69,26 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
                 WatcherStore.put(context, edited)
                 draft = draft.copy(original = edited)
                 Diagnostics.event(DiagnosticEvent.SETTINGS_SAVED, edited.id)
-                action(edited)
                 PushRegistration.enqueueRemovals(context)
                 PushRegistration.updateAutoInit(context)
+                // Bind the queued request to saved UI state without another suspension in between.
+                val request = action(edited)
                 Diagnostics.event(DiagnosticEvent.SETTINGS_SAVE_FINISHED, edited.id)
-                onDone()
+                if (request != null) registrationRequest = request.toString() else onDone()
             } catch (e: java.io.IOException) {
                 Diagnostics.failure(DiagnosticEvent.SETTINGS_WRITE_FAILED, e, edited.id)
                 message = "COULD NOT SAVE SETTINGS. CHECK AVAILABLE STORAGE AND TRY AGAIN."
             } finally { saving = false }
+        }
+    }
+
+    registrationRequest?.let { request ->
+        key(request) {
+            ConnectionFeedback(request, draft.original, watchers.firstOrNull { it.id == draft.original.id },
+                onRetry = { registrationRequest = Scheduler.schedule(context, draft.original)?.toString() },
+                onClose = { registrationRequest = null; onDone() },
+                onReview = { registrationRequest = null },
+            )
         }
     }
 
@@ -102,7 +118,7 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
                         TextButton(onClick = {
                             draft = WatcherDraft(existing).scanned(connection, watchers)
                             duplicate = null
-                            message = "EXISTING WATCHER SELECTED. SAVE AND REGISTER TO UPDATE."
+                            message = ""
                         }) { Text("UPDATE " + existing.name) }
                     }
                 }
@@ -117,6 +133,12 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
             style = MaterialTheme.typography.headlineSmall, color = GlanceWhite)
         PixelRule()
         Outlined("SCAN CONNECTION QR", enabled = !saving) { message = ""; scanning = true }
+        if (draft.paired && draft.delivery == Watcher.PUSH) Column(Modifier.fillMaxWidth().background(GlanceWhite).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("QR SCANNED", style = MaterialTheme.typography.titleMedium, color = GlanceBlack)
+            Text("Connection details filled in. Tap SAVE AND REGISTER to connect.",
+                style = MaterialTheme.typography.bodySmall, color = GlanceBlack)
+        }
         if (message.isNotEmpty()) Text("> " + message, style = MaterialTheme.typography.bodySmall, color = GlanceWhite)
         LocalNetworkAccess(enabled = !saving)
         if (draft.original.lastRunFailed) Text(
@@ -150,11 +172,11 @@ fun WatcherEditScreen(watcher: Watcher, watchers: List<Watcher>, onDone: () -> U
             style = MaterialTheme.typography.bodySmall, color = GlanceGrey)
         Field("Max length / characters", draft.maxLength, KeyboardType.Number) { draft = draft.copy(maxLength = it) }
 
-        Filled(if (draft.delivery == Watcher.PUSH) "SAVE AND REGISTER" else "SAVE AND SCHEDULE", enabled = !saving) {
+        Filled(if (saving) "SAVING..." else if (draft.delivery == Watcher.PUSH) "SAVE AND REGISTER" else "SAVE AND SCHEDULE", enabled = !saving) {
             saveThen { Scheduler.schedule(context, it) }
         }
         if (draft.delivery == Watcher.POLL) Outlined("SAVE AND CHECK NOW", enabled = !saving) {
-            saveThen { Scheduler.schedule(context, it); Scheduler.checkNow(context, it) }
+            saveThen { Scheduler.schedule(context, it); Scheduler.checkNow(context, it); null }
         }
         Outlined("BACK", enabled = !saving) { onCancel() }
         if (draft.original.url.isNotEmpty()) Outlined("DELETE THIS WATCHER", enabled = !saving) {

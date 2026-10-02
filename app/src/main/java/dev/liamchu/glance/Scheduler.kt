@@ -37,12 +37,11 @@ object Scheduler {
         manager.cancelUniqueWork("glance-now")
     }
 
-    fun schedule(context: Context, watcher: Watcher) {
+    fun schedule(context: Context, watcher: Watcher): java.util.UUID? {
         if (watcher.isPush) {
             cancel(context, watcher.id)
             // SAVE AND REGISTER is an explicit retry even when the saved values are unchanged.
-            PushRegistration.enqueue(context, watcher.id, force = true)
-            return
+            return PushRegistration.enqueue(context, watcher.id, force = true)
         }
         PushRegistration.cancel(context, watcher.id)
         val request = PeriodicWorkRequestBuilder<GlanceWorker>(
@@ -59,6 +58,7 @@ object Scheduler {
             ExistingPeriodicWorkPolicy.UPDATE,
             request,
         )
+        return null
     }
 
     /** Run one manual check without changing the repeating schedule. */

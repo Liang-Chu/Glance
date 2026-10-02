@@ -19,7 +19,7 @@ push also requires Google Play services and connectivity to FCM.
 1.0 APK and development test APKs used a debug key, so Android cannot update them in place.
 Export any needed diagnostics and keep your Firebase JSON and backend settings, uninstall the old
 app, then install and configure the current release. Uninstalling removes local settings and logs.
-Version 2.0.1 uses the same publisher key as 2.0 and supports an in-place update that keeps your settings.
+Official 2.x releases use the same publisher key and support in-place updates that keep your settings.
 
 ## Set up push
 
@@ -32,7 +32,8 @@ Version 2.0.1 uses the same publisher key as 2.0 and supports an in-place update
    enabled. Give your backend sending permission using the [backend setup instructions](docs/PROCESS.md#firebase-setup-for-push).
 5. In Glance, tap **+ NEW WATCHER**. Enter the name, registration URL and backend credential, or tap
    **SCAN CONNECTION QR** and scan Even-PIlot's **Connect phone · QR**.
-6. Tap **SAVE AND REGISTER**. Wait for **REGISTERED FOR PUSH**, then send a test from your backend.
+6. Tap **SAVE AND REGISTER**. The dialog shows progress, then **CONNECTED** with your watcher's name.
+   Send a test from your backend to check delivery. If registration fails, tap **RETRY NOW** or **REVIEW SETTINGS**.
 7. Allow Glance notifications. In the Even Realities app, enable **Glance** under **Notifications**.
 
 All PUSH watchers share the imported Firebase project. Each backend can use its own service account

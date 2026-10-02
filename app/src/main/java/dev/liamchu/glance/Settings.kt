@@ -114,15 +114,18 @@ object WatcherStore {
         }
     }
 
-    suspend fun recordPushRegistration(context: Context, expected: Watcher, address: String) {
+    suspend fun recordPushRegistration(context: Context, expected: Watcher, address: String): Boolean {
+        var confirmed = false
         change(context) { current ->
             current.map {
                 if (it.sameConfiguration(expected) && (it.pushAddress.isEmpty() || it.pushAddress == address)) {
                     Notifier.clearFailure(context, it.id)
+                    confirmed = true
                     it.copy(pushRegistered = true, pushAddress = address, lastRunFailed = false)
                 } else it
             }
         }
+        return confirmed
     }
 
     /** One higher than the highest ever used, so a deleted id is never reissued. */

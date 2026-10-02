@@ -23,8 +23,8 @@ android {
         // DESIGN.md "The stack": 26 is where a notification can carry its own lifetime.
         minSdk = 26
         targetSdk = 37
-        versionCode = 9
-        versionName = "2.0.1"
+        versionCode = 10
+        versionName = "2.0.2"
     }
 
     signingConfigs {

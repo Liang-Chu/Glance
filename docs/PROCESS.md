@@ -141,8 +141,11 @@ real Firebase project or register a subscription in the owner's backend.
 On a configured phone, open **+ NEW WATCHER → SCAN CONNECTION QR** and scan the existing desktop
 **Connect phone · QR**. Allow camera access. Recognition must stop immediately and show the filled
 editor. On Android 17+, use **ALLOW LOCAL NETWORK** for a LAN backend. Tap **SAVE AND REGISTER** once;
-Glance must remain open on the list and eventually show
-**REGISTERED FOR PUSH**. Check the backend's subscription, then deliver a normal FCM message to phone/G2.
+Glance must stay in-app and show a progress dialog followed by **CONNECTED** with the watcher's name.
+Tap **DONE** to return to the list. Check the backend's subscription, then deliver a normal FCM message to phone/G2.
+With the backend unavailable, confirm the dialog offers **RETRY NOW** and **REVIEW SETTINGS** without
+deleting the watcher. Rotate during registration and retry an already registered watcher: an old success
+must not immediately confirm the new request.
 
 Repeat in an existing watcher after changing expiry/length/name; only connection fields and PUSH mode
 should change. From a new watcher, scan that same endpoint and choose **UPDATE**; confirm no extra

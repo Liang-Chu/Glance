@@ -41,6 +41,7 @@ Inside `app/src/main/java/dev/liamchu/glance/`, one file per job:
 | `WatcherDraft.kt` | unsaved editor values, scanned defaults, validation and activity-state restoration |
 | `PairingConnection.kt` | desktop v1 QR parsing, single-result guard and duplicate connection matching |
 | `ConnectionScanner.kt` | live camera preview, on-demand permission and camera lifecycle |
+| `ConnectionFeedback.kt` | English registration progress/result dialog and current-request confirmation |
 | `LocalNetworkAccess.kt` | Android 17+ LAN permission and recovery controls in the editor |
 | `Components.kt` | the shared field, duration and rule composables, and how a watcher is labelled |
 | `Theme.kt` | the monochrome palette, the monospaced type, and the square corners |

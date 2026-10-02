@@ -363,8 +363,17 @@ endpoints remain usable without granting LAN access; denial keeps the permission
 The desktop's v1 URL is parsed by the rules in [`CONTRACT.md`](CONTRACT.md) "Connection QR v1".
 Recognition stops after one result. Valid input fills an unsaved PUSH draft and returns to the editor;
 invalid input shows a fixed error and a rescan option. Cancel, invalid codes and late frames never save
-or register anything. Drafts survive activity recreation. A single **SAVE AND REGISTER** writes private
-settings and queues the existing registration work, returning to the in-app list without finishing the activity.
+or register anything. Drafts survive activity recreation. Recognition shows a high-contrast **QR SCANNED**
+panel explaining that the connection is filled but not yet registered. A single **SAVE AND REGISTER**
+writes private settings and queues the existing registration work, showing an English progress/result
+dialog for this request. **CONNECTED** names the watcher only after HTTP registration is accepted and
+its current configuration/address is confirmed. Registration does not prove message delivery; the
+dialog asks for a backend test. **DONE** returns to the in-app list without finishing the activity.
+While waiting, users may continue in the background. A failed attempt offers **RETRY NOW** and
+**REVIEW SETTINGS**; automatic retries remain bounded. Observe the specific request across activity
+recreation with lifecycle-aware collection. Earlier successes, skipped work, changed/deleted watchers,
+and cancelled requests cannot produce a new successful confirmation. Private result metadata contains
+a confirmation flag and address fingerprint, never the raw address or credential.
 
 A new scanned watcher starts with an available `Even-PIlot` name (numeric suffix when needed), the
 ordinary length limit, and 30-second expiry. Subsequent scans retain draft preferences. Scanning an
@@ -385,3 +394,7 @@ the editor and list explain how to retry. No QR key enters logs, analytics, quer
 - `scan-4` Save uses the current registration contract; retries/rescans retain identity and failures never delete the watcher.
 - `scan-5` Permission denial, unavailable camera, bad codes, unreachable backend and rejected credentials have visible recovery actions.
 - `scan-6` Camera preview stops on background/exit, produces no image files, and never exposes the QR/key in logs or screenshots.
+- `scan-7` A recognized connection shows QR SCANNED with an explicit save instruction. Saving a push
+  watcher shows progress and a watcher-specific result; a success from an earlier request cannot confirm this save.
+- `scan-8` Only the current confirmed registration can display CONNECTED. Waiting/retry/failure/cancellation
+  stay distinct, errors offer retry and review, and confirmation does not claim that a message reached G2.
